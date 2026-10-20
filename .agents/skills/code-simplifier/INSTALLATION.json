@@ -1,0 +1,12 @@
+{
+  "source": "https://github.com/anthropics/claude-plugins-official",
+  "revision": "a0b04d9ddccaabe1976645f68b0eda50f74e7022",
+  "sourcePath": "plugins/code-simplifier/agents/code-simplifier.md",
+  "license": "Apache-2.0",
+  "localChanges": [
+    "Converted the Claude agent into a standard, automatically discoverable SKILL.md with concise Chinese guidance.",
+    "Removed the fixed model, TypeScript and function-style preferences, and unconditional editing behavior; follow project standards and the requested review or implementation scope.",
+    "Preserved behavior, focused scope, clarity, useful abstractions, and proportional verification; added project-specific reuse and module-boundary guidance.",
+    "LICENSE copied unchanged from plugins/code-simplifier/LICENSE at the pinned revision."
+  ]
+}

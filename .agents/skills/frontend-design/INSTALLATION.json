@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/anthropics/skills",
+  "revision": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+  "sourcePath": "skills/frontend-design",
+  "license": "Apache-2.0",
+  "localChanges": [
+    "INSTALLATION.json: records source revision; upstream skill and license are unchanged."
+  ]
+}

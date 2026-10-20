@@ -57,6 +57,16 @@ next-env.d.ts
 *.png
 *.webp
 .claude
+!/.claude/
+/.claude/*
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/ui-ux-pro-max
+!/.claude/skills/frontend-design
+!/.claude/skills/vercel-composition-patterns
+!/.claude/skills/vercel-react-best-practices
+!/.claude/skills/code-simplifier
+!/.claude/skills/arco-design
 **/__pycache__/**
 
 # Local DeviceCheck materials

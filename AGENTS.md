@@ -1,5 +1,17 @@
 # 公共开发规范
 
+## 技术栈
+
+| 层面 | 约定 |
+| --- | --- |
+| 语言 | JavaScript / JSX，不使用 TypeScript |
+| 框架 | Next.js Pages Router，页面与 API Routes 放在同一项目 |
+| UI | Arco Design React |
+| 工具函数 | Lodash，优先用于数据读取、字段筛选和集合处理，按需导入 |
+| 数据访问 | Sequelize，统一管理连接、模型、查询和事务 |
+| 数据库 | 默认 MySQL；PostgreSQL / SQLite 为兼容目标，需逐库验证 |
+| AI 开发 | Codex + Claude，共用规范与项目 skills |
+
 ## 1. 返回值
 
 - API 成功：`{"status":true,"data":{},"error":{}}`。
@@ -13,7 +25,8 @@
 ## 2. 模块化
 
 - 按业务模块组织代码，模块内按职责拆分，按需创建目录。
-- 页面负责入口和组合，组件负责展示与交互，client 负责请求，service 负责业务，repository 负责数据访问。
+- 页面与 API 保持轻量，组件负责展示与交互，业务逻辑放在所属模块。
+- service 可直接操作 Sequelize；client、repository 等按实际需要抽取，不强制每个模块分层。
 - 跨模块只调用公开接口，禁止引用对方内部实现或直接修改其数据。
 - 公共基础层不依赖具体业务，禁止循环依赖。
 - 客户端与服务端入口分开，客户端不得导入数据库、密钥或服务端实现。

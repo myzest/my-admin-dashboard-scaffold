@@ -1,0 +1,11 @@
+{
+  "source": "https://github.com/vercel-labs/agent-skills",
+  "revision": "063bee94c3f4df8453406c830b0a7df0f2860278",
+  "sourcePath": "skills/react-best-practices",
+  "license": "MIT",
+  "licenseSource": "Upstream SKILL.md frontmatter",
+  "localChanges": [
+    "SKILL.md: Project application: actual framework stack, module boundaries, justified optimization, and durable task handling.",
+    "INSTALLATION.json: records source revision and local adaptations."
+  ]
+}

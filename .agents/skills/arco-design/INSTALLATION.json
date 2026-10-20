@@ -1,0 +1,16 @@
+{
+  "source": "https://github.com/arco-design/arco-design-skill",
+  "revision": "47b174eb9c5866db3d1de20bd4a4ce5f2541eb8a",
+  "sourcePath": "skills/arco-design",
+  "license": "MIT",
+  "licenseSource": "Upstream repository LICENSE at the recorded revision",
+  "localChanges": [
+    "SKILL.md: narrow discovery to Arco React work; add project rules for JavaScript, Pages Router, verified APIs, scoped styling, request handling, and Lodash.",
+    "references/overview/getting-started.md: reconcile component imports, remove the invalid standalone icon package installation, and clarify JavaScript and Next.js applicability.",
+    "references/patterns/modal-patterns.md: distinguish validation failures from API failures and show feedback for failed saves.",
+    "references/patterns/form-patterns.md: distinguish validation failures from API failures and show feedback for failed submissions.",
+    "references/components/other/watermark.md: fix the broken useWatermark reference link.",
+    "LICENSE: copy the upstream repository license without modification.",
+    "INSTALLATION.json: record source revision and local adaptations."
+  ]
+}
