@@ -1,0 +1,64 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+**/node_modules/
+tools/frida/.build/
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+**objc-info.txt
+# testing
+/coverage
+/.database-backups/
+
+# next.js
+/.next/
+/out/
+/.usdt-recharge/*
+!/.usdt-recharge/.gitkeep
+/.recaptcha-ios-sdk/*
+!/.recaptcha-ios-sdk/.gitkeep
+/.apns-push/*
+!/.apns-push/.gitkeep
+/.filter-activities-phone/
+/.usdt-recharge.legacy-*/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+.open-next
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+*.zip
+*.png
+*.webp
+.claude
+**/__pycache__/**
+
+# Local DeviceCheck materials
+/.registration-date/*
+!/.registration-date/.gitkeep
