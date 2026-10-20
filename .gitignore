@@ -2,7 +2,6 @@
 
 # dependencies
 **/node_modules/
-tools/frida/.build/
 /node_modules
 /.pnp
 .pnp.*
@@ -11,7 +10,6 @@ tools/frida/.build/
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-**objc-info.txt
 # testing
 /coverage
 /.database-backups/
@@ -19,14 +17,6 @@ tools/frida/.build/
 # next.js
 /.next/
 /out/
-/.usdt-recharge/*
-!/.usdt-recharge/.gitkeep
-/.recaptcha-ios-sdk/*
-!/.recaptcha-ios-sdk/.gitkeep
-/.apns-push/*
-!/.apns-push/.gitkeep
-/.filter-activities-phone/
-/.usdt-recharge.legacy-*/
 
 # production
 /build
@@ -53,9 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-*.zip
-*.png
-*.webp
 .claude
 !/.claude/
 /.claude/*
@@ -69,6 +56,7 @@ next-env.d.ts
 !/.claude/skills/arco-design
 **/__pycache__/**
 
-# Local DeviceCheck materials
-/.registration-date/*
-!/.registration-date/.gitkeep
+# Local verification data and browser test artifacts
+/.local/
+/test-results/
+/playwright-report/

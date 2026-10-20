@@ -2,15 +2,15 @@
 
 ## 技术栈
 
-| 层面 | 约定 |
-| --- | --- |
-| 语言 | JavaScript / JSX，不使用 TypeScript |
-| 框架 | Next.js Pages Router，页面与 API Routes 放在同一项目 |
-| UI | Arco Design React |
+| 层面     | 约定                                                   |
+| -------- | ------------------------------------------------------ |
+| 语言     | JavaScript / JSX，不使用 TypeScript                    |
+| 框架     | Next.js Pages Router，页面与 API Routes 放在同一项目   |
+| UI       | Arco Design React                                      |
 | 工具函数 | Lodash，优先用于数据读取、字段筛选和集合处理，按需导入 |
-| 数据访问 | Sequelize，统一管理连接、模型、查询和事务 |
-| 数据库 | 默认 MySQL；PostgreSQL / SQLite 为兼容目标，需逐库验证 |
-| AI 开发 | Codex + Claude，共用规范与项目 skills |
+| 数据访问 | Sequelize，统一管理连接、模型、查询和事务              |
+| 数据库   | 默认 MySQL；PostgreSQL / SQLite 为兼容目标，需逐库验证 |
+| AI 开发  | Codex + Claude，共用规范与项目 skills                  |
 
 ## 1. 返回值
 
@@ -19,7 +19,7 @@
 - 成功时 `error` 为空对象，失败时 `data` 为空对象；HTTP 状态码与结果一致。
 - 分页统一放入 `data`：`{"items":[],"pagination":{"page":1,"pageSize":20,"total":0}}`。
 - 普通函数成功返回业务数据，失败抛出明确错误，由 API 层统一转换响应。
-- 单条查询无结果返回 `null`，列表无结果返回 `[]`；同一函数保持固定返回约定。
+- 单条查询无结果返回 `null`，非分页列表无结果返回 `[]`；分页沿用上述结构，`items` 为空数组。
 - 异步流程统一使用 `async/await`，不吞掉异常，不返回敏感内部信息。
 
 ## 2. 模块化
@@ -34,15 +34,15 @@
 
 ## 3. 命名
 
-| 类型 | 规则 | 示例 |
-| --- | --- | --- |
-| 目录、普通文件 | 小写短横线 | `api-keys`、`user-service.js` |
-| 组件、类 | 大驼峰 | `UserTable`、`ServiceError` |
-| Hook | use 前缀 | `useUserList` |
-| 变量、参数、JSON 字段 | 小驼峰 | `userId`、`pageSize` |
-| 函数、方法 | 动词＋业务对象 | `getUserById`、`createUser` |
-| 布尔值 | is / has / can 前缀 | `isLoading`、`hasPermission` |
-| 固定常量、错误码 | 大写下划线 | `MAX_PAGE_SIZE`、`USER_NOT_FOUND` |
+| 类型                  | 规则                | 示例                              |
+| --------------------- | ------------------- | --------------------------------- |
+| 目录、普通文件        | 小写短横线          | `api-keys`、`user-service.js`     |
+| 组件、类              | 大驼峰              | `UserTable`、`ServiceError`       |
+| Hook                  | use 前缀            | `useUserList`                     |
+| 变量、参数、JSON 字段 | 小驼峰              | `userId`、`pageSize`              |
+| 函数、方法            | 动词＋业务对象      | `getUserById`、`createUser`       |
+| 布尔值                | is / has / can 前缀 | `isLoading`、`hasPermission`      |
+| 固定常量、错误码      | 大写下划线          | `MAX_PAGE_SIZE`、`USER_NOT_FOUND` |
 
 - 组件和 Hook 文件与导出名称一致；操作统一使用 `get/list/create/update/delete`。
 - 名称表达职责，避免 `handleData`、`doSomething`、`utils2` 等含糊命名。
@@ -68,3 +68,11 @@
 - 需要统一项目行为时做轻量封装，现有方案无法满足时再自行实现。
 - 同类能力保持一套方案，避免重复工具库和多套 UI 库。
 - 新增依赖考虑维护状态、许可证、兼容性和体积；支持按需导入的库按需使用。
+
+## 7. 数据库与账号
+
+- 改字段时同步更新模型、新增迁移和必要测试；不改已执行的迁移，不用 `sync({ alter: true })` / `force` 改库。
+- 执行方法见 [数据库迁移](docs/database-migrations.md)：先备份，再由单个进程执行 `npm run db:migrate`，最后部署对应代码。
+- 角色固定为 `admin` / `user`；API 默认仅管理员可用。用户接口必须从会话确定身份，不信任请求中的角色或用户编号。
+- 余额保留四位小数，API 使用字符串；禁止浮点运算和负余额，超过四位直接拒绝。调账、日志写入在同一事务中，锁定用户并按操作编号去重。
+- 硬删除普通用户时，同步删除其余额、日志和全部会话；新建用户关联表必须声明删除行为。

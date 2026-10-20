@@ -1,0 +1,8 @@
+node_modules
+.next
+.agents
+.claude
+package-lock.json
+.local
+test-results
+playwright-report

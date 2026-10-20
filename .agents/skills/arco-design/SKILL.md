@@ -9,7 +9,7 @@ description: "Use when building, reviewing, or debugging React interfaces that u
 
 ## 本项目约束
 
-- 遵循项目根目录 `AGENT.md` / `CLAUDE.md` 和用户已确认的技术选择：JavaScript / JSX、Next.js Pages Router。上游 TSX 示例仅供参考，不引入 TypeScript。
+- 遵循项目根目录 `AGENTS.md` / `CLAUDE.md` 和用户已确认的技术选择：JavaScript / JSX、Next.js Pages Router。上游 TSX 示例仅供参考，不引入 TypeScript。
 - 按任务读取相关组件文档，并核对实际安装版本的公开 API；不套用 Ant Design 或 Arco Vue 的参数，不引用组件库内部实现。
 - 在 `pages/_app.jsx` 统一引入 Arco CSS、设置 `ConfigProvider`；浏览器 DOM、存储和主题切换放在客户端执行，保持服务端与客户端首屏一致。不为绕过问题全局关闭 SSR，也不直接照搬通用 Babel / Webpack / Less 配置。
 - 优先使用公开 props、主题变量和项目公共组件；局部样式使用 CSS Modules 或明确的作用域。全局样式限于基础样式、字体和统一主题；禁止用全局 `.arco-*` 覆盖或堆叠 `!important` 修补未定位的问题。

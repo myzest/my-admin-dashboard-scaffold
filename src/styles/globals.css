@@ -1,0 +1,47 @@
+:root {
+  --app-background: #f5f7fa;
+  --app-surface: #ffffff;
+  --app-text: #24324a;
+  --app-muted: #64748b;
+  --app-border: #e4eaf1;
+  --app-accent: #126d64;
+  --app-accent-soft: #e8f3f0;
+}
+
+body {
+  --primary-1: 232, 243, 240;
+  --primary-2: 202, 229, 222;
+  --primary-3: 163, 207, 196;
+  --primary-4: 111, 178, 163;
+  --primary-5: 57, 144, 129;
+  --primary-6: 18, 109, 100;
+  --primary-7: 11, 88, 82;
+  --primary-8: 6, 67, 64;
+  --primary-9: 3, 47, 45;
+  --primary-10: 1, 27, 26;
+  --border-radius-small: 5px;
+  --border-radius-medium: 8px;
+  margin: 0;
+  color: var(--app-text);
+  background: var(--app-background);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+* {
+  box-sizing: border-box;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}

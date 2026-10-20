@@ -1,0 +1,181 @@
+import { useState } from 'react';
+import { Button, Input, Message, Modal } from '@arco-design/web-react';
+import { IconPlus, IconRefresh, IconSearch } from '@arco-design/web-react/icon';
+import useSWR, { useSWRConfig } from 'swr';
+import PageHeader from '@/components/PageHeader';
+import RequestError from '@/components/RequestError';
+import { AuthenticatedLayout, useAuthRequest } from '@/modules/auth/client';
+import { BalanceAdjustmentModal } from '@/modules/balance/client';
+import UserFormModal from './UserFormModal';
+import UserTable from './UserTable';
+import styles from '@/styles/workspace.module.css';
+
+export default function UsersPage({ user }) {
+  const [message, messageHolder] = Message.useMessage();
+  const [keyword, setKeyword] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [editor, setEditor] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [balanceUser, setBalanceUser] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [mutationError, setMutationError] = useState(null);
+  const request = useAuthRequest();
+  const { mutate: mutateCache } = useSWRConfig();
+  const query = new URLSearchParams({ page, pageSize, search });
+  const { data, error, isLoading, isValidating, mutate } = useSWR(`/api/users?${query}`, {
+    onSuccess: (result) => {
+      const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
+      if (page > lastPage) setPage(lastPage);
+    },
+  });
+
+  function refreshList() {
+    return mutate(undefined, { revalidate: true, throwOnError: false });
+  }
+
+  function openEditor(account = null) {
+    setMutationError(null);
+    setEditor({ user: account });
+  }
+
+  async function saveUser(values) {
+    setIsSaving(true);
+    setMutationError(null);
+    try {
+      const account = editor.user;
+      await request(account ? `/api/users/${account.id}` : '/api/users', {
+        method: account ? 'PUT' : 'POST',
+        body: values,
+      });
+      setEditor(null);
+      message.success(account ? '用户已更新' : '用户已创建');
+      await refreshList();
+    } catch (requestError) {
+      setMutationError(requestError);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteUser() {
+    setIsSaving(true);
+    setMutationError(null);
+    try {
+      await request(`/api/users/${deletingUser.id}`, { method: 'DELETE' });
+      await mutateCache(
+        (key) => typeof key === 'string' && key.startsWith('/api/balance-logs'),
+        undefined,
+        { revalidate: false },
+      );
+      setDeletingUser(null);
+      message.success('用户及其余额、日志、会话已删除');
+      await refreshList();
+    } catch (requestError) {
+      setMutationError(requestError);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <AuthenticatedLayout user={user}>
+      {messageHolder}
+      <PageHeader title="用户管理" description="管理普通用户资料和余额。">
+        <Button type="primary" icon={<IconPlus />} onClick={() => openEditor()}>
+          新增用户
+        </Button>
+      </PageHeader>
+      <section className={styles.panel} aria-label="用户列表">
+        <div className={styles.toolbar}>
+          <form
+            className={styles.search}
+            onSubmit={(event) => {
+              event.preventDefault();
+              setPage(1);
+              setSearch(keyword.trim());
+            }}
+          >
+            <Input
+              aria-label="搜索用户名或显示名称"
+              placeholder="搜索用户名或显示名称"
+              prefix={<IconSearch />}
+              allowClear
+              maxLength={64}
+              value={keyword}
+              onChange={setKeyword}
+            />
+            <Button htmlType="submit">查询</Button>
+          </form>
+          <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
+            刷新
+          </Button>
+        </div>
+        <RequestError error={error} onRetry={refreshList} />
+        {!error || data ? (
+          <UserTable
+            data={data}
+            isLoading={isLoading || isValidating}
+            page={page}
+            pageSize={pageSize}
+            hasSearch={Boolean(search)}
+            onPageChange={(nextPage, nextPageSize) => {
+              setPage(nextPageSize === pageSize ? nextPage : 1);
+              setPageSize(nextPageSize);
+            }}
+            onEdit={openEditor}
+            onDelete={(account) => {
+              setMutationError(null);
+              setDeletingUser(account);
+            }}
+            onAdjustBalance={setBalanceUser}
+          />
+        ) : null}
+      </section>
+      {editor ? (
+        <UserFormModal
+          user={editor.user}
+          isSaving={isSaving}
+          error={mutationError}
+          onSubmit={saveUser}
+          onCancel={() => setEditor(null)}
+        />
+      ) : null}
+      {balanceUser ? (
+        <BalanceAdjustmentModal
+          operatorId={user.id}
+          user={balanceUser}
+          onCancel={() => setBalanceUser(null)}
+          onSuccess={async () => {
+            setBalanceUser(null);
+            message.success('余额已调整');
+            await refreshList();
+          }}
+        />
+      ) : null}
+      <Modal
+        title="删除用户"
+        visible={Boolean(deletingUser)}
+        unmountOnExit
+        maskClosable={false}
+        closable={!isSaving}
+        escToExit={!isSaving}
+        confirmLoading={isSaving}
+        okText="确认删除"
+        cancelText="取消"
+        okButtonProps={{ status: 'danger' }}
+        cancelButtonProps={{ disabled: isSaving }}
+        onOk={deleteUser}
+        onCancel={() => setDeletingUser(null)}
+        style={{ width: 'min(480px, calc(100vw - 32px))' }}
+      >
+        <p className={styles.description}>
+          确认删除“{deletingUser?.username}”吗？账号、剩余余额（{deletingUser?.balance}
+          ）、全部余额日志和登录会话将一并永久删除，无法恢复。
+        </p>
+        <RequestError error={mutationError} />
+      </Modal>
+    </AuthenticatedLayout>
+  );
+}

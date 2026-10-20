@@ -1,0 +1,136 @@
+# Admin Starter
+
+一套轻量后台脚手架：管理员与普通用户共用登录、按角色展示面板，内置用户管理、可开关注册、四位小数余额和日志，以及可照着扩展的分类 CRUD 示例。
+
+技术栈：JavaScript / JSX、Next.js Pages Router、Arco Design React、Lodash、Sequelize。首版验证 MySQL，PostgreSQL / SQLite 留待后续兼容验收。
+
+## 本地启动
+
+需要 Node.js >= 22.13 和 MySQL；项目 `.nvmrc` 当前为 26.3.0。
+
+```bash
+npm ci
+cp .env.example .env.local
+```
+
+用数据库管理员创建专用数据库和用户。将示例密码替换成自己的强密码：
+
+```sql
+CREATE DATABASE admin_starter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'admin_starter'@'localhost' IDENTIFIED BY 'replace-with-a-strong-db-password';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP, REFERENCES
+ON admin_starter.* TO 'admin_starter'@'localhost';
+```
+
+填写 `.env.local`：
+
+| 配置                                                      | 用途                                         |
+| --------------------------------------------------------- | -------------------------------------------- |
+| `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` | 上面创建的数据库连接                         |
+| `DB_POOL_MAX`                                             | 每个应用进程的连接池上限，默认 10            |
+| `SESSION_SECRET`                                          | 至少 32 字符的随机密钥                       |
+| `ADMIN_USERNAME`、`ADMIN_PASSWORD`                        | 初始管理员；密码至少 12 字符且不超过 72 字节 |
+
+生成会话密钥：
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+初始化并启动：
+
+```bash
+npm run db:setup
+npm run dev
+```
+
+打开 `http://127.0.0.1:3000/login`，使用配置的管理员登录。
+
+| 入口            | 功能                                             |
+| --------------- | ------------------------------------------------ |
+| `/users`        | 管理员创建、编辑、搜索普通用户，调整余额或硬删除 |
+| `/settings`     | 管理员开启或关闭公开注册，初始默认关闭           |
+| `/register`     | 开放注册时创建普通用户，随后回登录页登录         |
+| `/dashboard`    | 当前账号资料与余额；普通用户登录后的首页         |
+| `/profile`      | 账号资料与修改密码，管理员和普通用户均可访问     |
+| `/balance-logs` | 管理员查看所有余额日志，普通用户只查看自己的日志 |
+| `/categories`   | 管理员分类 CRUD 示例                             |
+
+账号角色固定为管理员和普通用户，不提供自选角色或角色管理。新用户余额为 `0.0000`。管理员手动增加或扣减余额，金额超过四位小数或扣成负数会被拒绝；余额与日志同步提交，重复操作编号不会重复入账。金额上限为 `9999999999999999.9999`，API 金额均为字符串。
+
+调账结果未确认时保留原参数和操作编号；关闭弹窗或刷新后，重新打开可继续确认同一笔调整。当前标签页恢复记录不可写入时，不发送新调账。关闭标签页或清除浏览器数据后，应先核对余额日志，再决定是否重新操作。
+
+硬删除普通用户会删除账号、剩余余额、所有余额日志及会话，余额非零也允许删除，界面会二次确认。修改密码需要原密码，成功后所有会话失效并重新登录。
+
+`db:setup` 执行迁移并创建初始管理员；重复执行会保留已有账号和密码。没有内置默认密码。`.env.local` 已被 Git 忽略。
+
+数据库与会话配置独立：`db:migrate` 只需要数据库配置，首次 `db:seed` 还需要初始管理员输入；应用启动时同时检查数据库配置和 `SESSION_SECRET`。
+
+## 普通服务器部署
+
+部署使用常驻 Node.js 服务，由服务管理器提供环境变量。初始账号创建后，运行服务不再需要 `ADMIN_PASSWORD`。
+
+```bash
+npm ci
+npm run db:setup
+npm run build
+npm run start
+```
+
+服务默认监听 `127.0.0.1:3000`，可由 Nginx 等反向代理提供访问入口。应用不校验固定 Origin，也不需要 `APP_ORIGIN`。按已确认选择，会话 Cookie 使用 `secure: false`，保留 `HttpOnly` 和 `SameSite=Lax`。
+
+后续发布先备份数据库，再由单个部署进程运行 `npm run db:migrate`。字段迭代、旧版升级和失败处理见 [数据库迁移](docs/database-migrations.md)。旧版升级保留管理员账号密码，浏览器需要重新登录。
+
+## 增加业务模块
+
+```text
+src/
+  pages/                 页面与 API 入口
+  modules/auth/          登录、会话与服务端鉴权
+  modules/users/         账号、用户管理、余额与日志
+  modules/balance/       余额操作、日志与工作台界面
+  modules/settings/      注册开关
+  modules/categories/    完整 CRUD 示例
+  components/            通用展示组件
+  config/navigation.js   菜单配置
+  lib/request.js         浏览器统一请求函数
+  server/                数据库连接、配置与 API 处理
+database/migrations/     数据库迁移
+```
+
+1. 参照 `categories` 创建业务模块，定义模型、参数校验和业务方法。
+2. 增加迁移文件，使用 `npm run db:migrate` 更新结构。
+3. 在 `pages/api` 添加薄入口，使用 `createApiHandler`；默认仅管理员可用，任意已登录用户用 `{ role: null }`。
+4. 在 `pages` 组合模块页面，使用 `requirePageAuth(context, { role: 'admin' })` 保护管理页；普通用户页省略角色参数。同步更新菜单配置。
+
+页面和 API 调用模块公开入口。浏览器只导入 `client.js`，服务端代码通过 `server.js` 导出。service 可直接操作 Sequelize，出现实际复用需求后再提取 repository 或公共组件。
+
+普通用户数据从当前会话确定归属，不只依赖隐藏菜单。余额写入统一调用 `changeUserBalance`；新增用户关联表时明确硬删除行为，不能遗漏日志或会话。
+
+API 统一返回 `{ status, data, error }`，错误同时使用对应 HTTP 状态码；分页数据为 `{ items, pagination: { page, pageSize, total } }`。普通函数返回业务数据或抛错；单条查询无结果返回 `null`。
+
+列表查询校验已定义的分页、搜索参数，并忽略额外查询字段。
+
+详细规范见 [AGENTS.md](AGENTS.md) 和 [CLAUDE.md](CLAUDE.md)，两者保持一致。
+
+## 验证
+
+```bash
+npm run lint
+npm run format:check
+npm test
+```
+
+集成和浏览器测试使用真实 MySQL 与应用服务。请创建独立测试库，将 `DB_NAME` 配置为以 `_test` 结尾的名称，完成 `db:setup` 后启动应用；不要使用业务库。另开终端运行：
+
+```bash
+npm run test:integration
+npx playwright install chromium
+npm run test:e2e
+```
+
+测试默认访问 `http://127.0.0.1:3000`；需要其他地址时，通过 `TEST_BASE_URL` 覆盖，例如 `TEST_BASE_URL=http://127.0.0.1:3001 npm run test:integration`。目标应用与测试进程必须使用同一测试数据库配置；`_test` 后缀检查只验证测试进程的配置。
+
+集成测试与 E2E 之间重启应用服务，清空本进程的登录限流计数；生产限流不因测试而放宽。迁移测试另用空库，执行方式见 [数据库迁移](docs/database-migrations.md)。
+
+当前限制、待确认事项和验收记录见 [implementation-notes.md](docs/implementation-notes.md)。

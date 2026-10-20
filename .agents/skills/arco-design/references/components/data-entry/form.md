@@ -255,7 +255,7 @@ function MyForm() {
 
 ## 最佳实践
 
-1. **始终使用 `Form.useForm()`** 创建表单实例，方便外部控制
+1. **需要外部控制时才使用 `Form.useForm()`**，例如主动校验、重置或设置字段；仅通过 `initialValues` 和 `onSubmit` 完成的表单无需创建和传入实例
 2. **`field` 支持嵌套路径**：`user.name`、`addresses[0].city`
 3. **校验时机**：输入密码用 `onBlur`，实时搜索用 `onChange`
 4. **复杂表单拆分为 `Form.List`**，避免手动管理动态字段

@@ -1,0 +1,77 @@
+.page {
+  display: grid;
+  align-content: center;
+  min-height: 100vh;
+  padding: 104px 24px 64px;
+}
+
+.brand {
+  position: absolute;
+  top: 30px;
+  left: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--app-accent);
+}
+
+.brand svg {
+  font-size: 24px;
+}
+
+.panel {
+  width: 100%;
+  max-width: 432px;
+  margin: 0 auto;
+  padding: 40px;
+  border: 1px solid var(--app-border);
+  border-top: 3px solid var(--app-accent);
+  border-radius: 12px;
+  background: var(--app-surface);
+}
+
+.heading {
+  margin-bottom: 28px;
+}
+.heading h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  line-height: 1.35;
+  letter-spacing: -0.5px;
+}
+.heading p {
+  margin: 0;
+  color: var(--app-muted);
+}
+.error {
+  margin-bottom: 20px;
+}
+
+.footer {
+  margin: 24px 0 0;
+  text-align: center;
+  color: var(--app-muted);
+}
+
+.footer a {
+  color: var(--app-accent);
+}
+
+.footer a:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 96px 16px 40px;
+  }
+  .brand {
+    left: 24px;
+  }
+  .panel {
+    padding: 28px 24px;
+  }
+}
