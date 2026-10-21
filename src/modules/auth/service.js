@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Op, Transaction } from 'sequelize';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { getDatabase } from '../../server/database.js';
+import { getClientAddress } from '../../server/client-address.js';
 import { HttpError } from '../../server/errors.js';
 import { getHomePath } from '../../config/access.js';
 import { authenticateUser, createUserAccount, getUserById } from '../users/server.js';
@@ -19,8 +20,7 @@ const registrationLimiter = (globalThis.adminStarterRegistrationLimiter ||= new 
 }));
 
 async function checkAuthRate(limiter, req, res, code, message) {
-  // Do not trust arbitrary X-Forwarded-For headers. This limiter is process-local.
-  const clientAddress = req.socket.remoteAddress || 'unknown';
+  const clientAddress = getClientAddress(req);
   try {
     await limiter.consume(clientAddress);
   } catch (limit) {

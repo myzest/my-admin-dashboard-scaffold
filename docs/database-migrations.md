@@ -55,7 +55,9 @@ MySQL 的 DDL 会自动提交，不能把迁移失败当作已全部回滚。迁
 
 ## 验证迁移
 
-创建并授权一个空的专用数据库，名字以 `_migration_test` 结尾，然后运行：
+先按 README 的“验证”填写 `.env.test.local`。迁移测试使用其中的测试数据库连接和账号配置，不读取业务 `.env.local`，也不继承终端中的其他 `DB_*` 配置。
+
+在同一个测试 MySQL 实例创建并授权一个空的专用数据库，名字以 `_migration_test` 结尾，然后显式指定目标库：
 
 ```bash
 DB_NAME=admin_starter_migration_test node --test tests/migrations/upgrade.test.js

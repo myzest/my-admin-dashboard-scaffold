@@ -1,6 +1,10 @@
 import { fileURLToPath } from 'node:url';
+import { getTestBuildDirectory, restoreTestConfig } from './scripts/test-config.js';
+
+if (process.env.TEST_RUN_ID) restoreTestConfig();
 
 const nextConfig = {
+  distDir: process.env.TEST_RUN_ID ? getTestBuildDirectory(process.env.TEST_RUN_ID) : '.next',
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@arco-design/web-react'],

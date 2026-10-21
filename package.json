@@ -18,8 +18,9 @@
     "db:setup": "node scripts/database.js setup",
     "admin:reset-password": "node scripts/reset-admin-password.js",
     "test": "node --test tests/*.test.js",
-    "test:integration": "node --test tests/integration/*.test.js",
-    "test:e2e": "playwright test",
+    "test:integration": "node scripts/test.js integration",
+    "test:e2e": "node scripts/test.js e2e",
+    "test:system": "node scripts/test.js system",
     "predev": "node scripts/check-env.js",
     "prestart": "node scripts/check-env.js"
   },

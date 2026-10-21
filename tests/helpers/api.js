@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { getManagedTestUrl } from '../../scripts/test-config.js';
 
-export const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:3000';
+export const baseUrl = getManagedTestUrl();
 
 export async function call(
   path,

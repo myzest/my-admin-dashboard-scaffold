@@ -1,8 +1,8 @@
-import '../../scripts/load-env.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import bcrypt from 'bcryptjs';
+import { createTestEnvironment } from '../../scripts/test-config.js';
 import { createMigrator } from '../../database/migrator.js';
 import { getDatabase } from '../../src/server/database.js';
 import { changeUserBalance, createUser, seedAdmin } from '../../src/modules/users/admin/server.js';
@@ -11,6 +11,13 @@ import {
   getRegistrationSettings,
   updateRegistrationSettings,
 } from '../../src/modules/settings/admin/server.js';
+
+const migrationDatabase = process.env.DB_NAME;
+Object.assign(
+  process.env,
+  createTestEnvironment(new URL('../../.env.test.local', import.meta.url)),
+  { DB_NAME: migrationDatabase || '' },
+);
 
 assert.ok(
   process.env.DB_NAME?.endsWith('_migration_test'),

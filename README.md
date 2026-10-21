@@ -104,6 +104,24 @@ npm run start
 
 服务默认监听 `127.0.0.1:3000`，可由 Nginx 等反向代理提供访问入口。应用不校验固定 Origin，也不需要 `APP_ORIGIN`。按已确认选择，会话 Cookie 使用 `secure: false`，保留 `HttpOnly` 和 `SameSite=Lax`。
 
+登录和注册分别按客户端 IP 限流，每个应用进程每 15 分钟最多 10 次尝试，成功请求也计数。默认直接使用连接地址，不信任转发头。使用本机 Nginx 时，在应用环境中设置：
+
+```dotenv
+TRUSTED_PROXY_IPS=127.0.0.1,::1
+```
+
+配置只接受逗号分隔的精确 IP 地址，不接受网段或通配符。只有直接连接来自这些地址时，应用才使用单个合法的 `X-Forwarded-For` 地址；缺失、非法或多值头会回退到连接地址。Nginx 必须覆盖客户端传来的转发头：
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+}
+```
+
+这套单代理配置需要覆盖转发头，不使用 `$proxy_add_x_forwarded_for`；信任列表只填写由你控制的代理地址。异机代理还需要把应用监听地址改为代理可达的私网地址，填写应用实际看到的代理 IP，并限制应用端口只供代理访问。多层代理需要由最后一层可信代理提供经验证的单个客户端地址；多进程限流仍分别计数。
+
 后续发布先备份数据库，再由单个部署进程运行 `npm run db:migrate`。字段迭代、旧版升级和失败处理见 [数据库迁移](docs/database-migrations.md)。旧版升级保留管理员账号密码，浏览器需要重新登录。
 
 ## 增加业务模块
@@ -150,16 +168,23 @@ npm run format:check
 npm test
 ```
 
-集成和浏览器测试使用真实 MySQL 与应用服务。请创建独立测试库，将 `DB_NAME` 配置为以 `_test` 结尾的名称，完成 `db:setup` 后启动应用；不要使用业务库。另开终端运行：
+集成和浏览器测试统一通过隔离启动入口运行。先创建并授权一个专用 MySQL 测试库，库名只使用字母、数字和下划线，并以 `_test` 结尾；不要使用业务库。然后创建测试配置：
 
 ```bash
-npm run test:integration
-npx playwright install chromium
-npm run test:e2e
+cp .env.test.example .env.test.local
 ```
 
-测试默认访问 `http://127.0.0.1:3000`；需要其他地址时，通过 `TEST_BASE_URL` 覆盖，例如 `TEST_BASE_URL=http://127.0.0.1:3001 npm run test:integration`。目标应用与测试进程必须使用同一测试数据库配置；`_test` 后缀检查只验证测试进程的配置。
+在 `.env.test.local` 中填写测试数据库连接和测试管理员账号密码。`DB_PASSWORD` 必须显式填写，允许留空；`DB_PORT`、`DB_POOL_MAX` 可使用示例默认值。测试配置不读取或回退到 `.env.local`，也不接收额外配置字段；不要把业务配置直接复制过来。
 
-集成测试与 E2E 之间重启应用服务，清空本进程的登录限流计数；生产限流不因测试而放宽。迁移测试另用空库，执行方式见 [数据库迁移](docs/database-migrations.md)。
+```bash
+npx playwright install chromium
+npm run test:system
+```
+
+入口自动执行测试库迁移和管理员初始化，在 `.local/test-build-<UUID>` 独立构建，生成临时会话密钥，并启动监听本机随机端口的应用。应用与测试使用启动时固定的同一份数据库配置；密码中的 `$` 按字面值保留，不受 Next.js 环境变量展开影响。地址由本次应用进程返回，不使用外部 `TEST_BASE_URL`，也不会连接已经运行的开发服务。无需手动执行 `db:setup`、构建或启动应用。
+
+`test:system` 依次运行集成和浏览器测试，中间自动重启应用清空进程内登录额度。只跑其中一套时使用 `npm run test:integration` 或 `npm run test:e2e`，它们也走同一入口。直接运行集成测试文件或 `playwright test` 会拒绝未受管理的目标。
+
+完成、失败或按 `Ctrl+C` 时，入口停止自己启动的进程并删除本次构建目录，保留截图、失败诊断和测试数据库，不清空数据库或重置已有管理员密码。重复运行时，配置中的管理员凭据应与测试库保持一致；同一测试库一次只运行一个入口。生产 `.next` 和已有应用进程不受影响，生产限流额度不因测试而放宽。迁移测试仍另用空库，执行方式见 [数据库迁移](docs/database-migrations.md)。
 
 当前限制、待确认事项和验收记录见 [implementation-notes.md](docs/implementation-notes.md)。
