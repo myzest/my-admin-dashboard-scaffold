@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button, Form, Message, Spin, Switch } from '@arco-design/web-react';
 import useSWR from 'swr';
-import { AuthenticatedLayout, useAuthRequest } from '@/modules/auth/client';
+import { useAuthRequest } from '@/modules/auth/client';
+import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
 import RequestError from '@/components/RequestError';
 import styles from '@/styles/workspace.module.css';
@@ -11,13 +12,16 @@ export default function SettingsPage({ user }) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const request = useAuthRequest();
-  const { data, error, isLoading, mutate } = useSWR('/api/settings/registration');
+  const { data, error, isLoading, mutate } = useSWR('/api/admin/settings/registration');
 
   async function saveSettings(values) {
     setIsSaving(true);
     setSaveError(null);
     try {
-      const result = await request('/api/settings/registration', { method: 'PUT', body: values });
+      const result = await request('/api/admin/settings/registration', {
+        method: 'PUT',
+        body: values,
+      });
       await mutate(result, { revalidate: false });
       message.success('注册设置已保存');
     } catch (requestError) {
@@ -28,7 +32,7 @@ export default function SettingsPage({ user }) {
   }
 
   return (
-    <AuthenticatedLayout user={user}>
+    <AdminLayout user={user}>
       {messageHolder}
       <PageHeader title="系统设置" description="管理普通用户的注册方式。" />
       <section className={styles.panel} aria-label="注册设置">
@@ -62,6 +66,6 @@ export default function SettingsPage({ user }) {
           </div>
         ) : null}
       </section>
-    </AuthenticatedLayout>
+    </AdminLayout>
   );
 }

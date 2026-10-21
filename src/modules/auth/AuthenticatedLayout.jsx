@@ -5,7 +5,7 @@ import { useSWRConfig } from 'swr';
 import AppLayout from '@/components/AppLayout';
 import useAuthRequest from './useAuthRequest';
 
-export default function AuthenticatedLayout({ user, children }) {
+export default function AuthenticatedLayout({ user, navigation, title, homePath, children }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [error, setError] = useState('');
   const { mutate } = useSWRConfig();
@@ -27,7 +27,14 @@ export default function AuthenticatedLayout({ user, children }) {
   }
 
   return (
-    <AppLayout user={user} onLogout={logout} isLoggingOut={isLoggingOut}>
+    <AppLayout
+      user={user}
+      navigation={navigation}
+      title={title}
+      homePath={homePath}
+      onLogout={logout}
+      isLoggingOut={isLoggingOut}
+    >
       {error ? (
         <Alert type="error" content={error} style={{ marginBottom: 20 }} role="alert" />
       ) : null}

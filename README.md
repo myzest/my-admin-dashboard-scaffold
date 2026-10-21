@@ -1,6 +1,6 @@
 # Admin Starter
 
-一套轻量后台脚手架：管理员与普通用户共用登录、按角色展示面板，内置用户管理、账号启停和密码重置、可开关注册、四位小数余额和日志，以及可照着扩展的分类 CRUD 示例。
+一套轻量后台脚手架：管理员与普通用户共用登录，页面、API 和业务服务分别维护；内置用户管理、账号启停和密码重置、可开关注册、四位小数余额和日志，以及可照着扩展的分类 CRUD 示例。
 
 技术栈：JavaScript / JSX、Next.js Pages Router、Arco Design React、Lodash、Sequelize。首版验证 MySQL，PostgreSQL / SQLite 留待后续兼容验收。
 
@@ -46,15 +46,20 @@ npm run dev
 
 打开 `http://127.0.0.1:3000/login`，使用配置的管理员登录。
 
-| 入口            | 功能                                                             |
-| --------------- | ---------------------------------------------------------------- |
-| `/users`        | 管理员创建、编辑、搜索、启停普通用户，重置密码、调整余额或硬删除 |
-| `/settings`     | 管理员开启或关闭公开注册，初始默认关闭                           |
-| `/register`     | 开放注册时创建普通用户，随后回登录页登录                         |
-| `/dashboard`    | 当前账号资料与余额；普通用户登录后的首页                         |
-| `/profile`      | 账号资料与修改密码，管理员和普通用户均可访问                     |
-| `/balance-logs` | 管理员查看所有余额日志，普通用户只查看自己的日志                 |
-| `/categories`   | 管理员分类 CRUD 示例                                             |
+| 入口                              | 功能                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `/admin/users`                    | 管理员首页；创建、编辑、搜索、启停普通用户，重置密码、调整余额或硬删除 |
+| `/admin/settings`                 | 管理员开启或关闭公开注册，初始默认关闭                                 |
+| `/register`                       | 开放注册时创建普通用户，随后回登录页登录                               |
+| `/user/dashboard`                 | 普通用户首页；查看本人账号资料与余额                                   |
+| `/admin/profile`、`/user/profile` | 分别查看本人账号资料、修改密码                                         |
+| `/admin/balance-logs`             | 查看全部余额日志，支持按用户筛选                                       |
+| `/user/balance-logs`              | 只查看本人的余额日志                                                   |
+| `/admin/categories`               | 管理员分类 CRUD 示例                                                   |
+
+业务 API 使用 `/api/admin/*` 和 `/api/user/*`，各自校验固定角色；本人资料和改密接口分别为各端的 `/me`、`/password`。公共认证保留 `/api/auth/login`、`logout`、`register`、`registration`。
+
+项目处于脚手架开发阶段；旧的无前缀业务页面和 API，以及 `/api/auth/me`、`/api/auth/password` 已移除，返回 404，不提供兼容跳转。两端共用数据库模型、基础方法和展示组件，不在同一业务实现内按角色切换查询范围。
 
 账号角色固定为管理员和普通用户，不提供自选角色或角色管理。新用户余额为 `0.0000`。管理员手动增加或扣减余额，金额超过四位小数或扣成负数会被拒绝；余额与日志同步提交，重复操作编号不会重复入账。金额上限为 `9999999999999999.9999`，API 金额均为字符串。
 
@@ -105,15 +110,18 @@ npm run start
 
 ```text
 src/
-  pages/                 页面与 API 入口
+  pages/admin/           管理员页面
+  pages/user/            用户页面
+  pages/api/admin/       管理员 API
+  pages/api/user/        用户 API
+  pages/api/auth/        公共认证 API
   modules/auth/          登录、会话与服务端鉴权
-  modules/users/         账号、用户管理、余额与日志
-  modules/balance/       余额操作、日志与工作台界面
+  modules/users/         共享账号基础；admin / user 各自业务入口
+  modules/balance/       admin / user 各自页面、共享日志展示
   modules/settings/      注册开关
   modules/categories/    完整 CRUD 示例
   components/            通用展示组件
-  config/navigation.js   菜单配置
-  config/site.js         站点名称与 Logo
+  config/                两端菜单、登录后的首页与站点配置
   lib/request.js         浏览器统一请求函数
   server/                数据库连接、配置与 API 处理
 database/migrations/     数据库迁移
@@ -121,16 +129,16 @@ database/migrations/     数据库迁移
 
 1. 参照 `categories` 创建业务模块，定义模型、参数校验和业务方法。
 2. 增加迁移文件，使用 `npm run db:migrate` 更新结构。
-3. 在 `pages/api` 添加薄入口，使用 `createApiHandler`；默认仅管理员可用，任意已登录用户用 `{ role: null }`。
-4. 在 `pages` 组合模块页面，使用 `requirePageAuth(context, { role: 'admin' })` 保护管理页；普通用户页省略角色参数。同步更新菜单配置。
+3. 在 `pages/api/admin` 或 `pages/api/user` 添加薄入口，使用 `createApiHandler` 并显式指定 `{ role: 'admin' }` 或 `{ role: 'user' }`。两端业务服务独立；涉及两端的模块按需拆分 `admin` / `user`，共用模型和基础方法。
+4. 在对应的 `pages/admin` 或 `pages/user` 组合页面，使用 `requirePageAuth(context, { role: 'admin' })` 或 `{ role: 'user' }`，并更新所属菜单。公共组件只接收展示数据与回调，不按角色切换业务。
 
 页面和 API 调用模块公开入口。浏览器只导入 `client.js`，服务端代码通过 `server.js` 导出。service 可直接操作 Sequelize，出现实际复用需求后再提取 repository 或公共组件。
 
-普通用户数据从当前会话确定归属，不只依赖隐藏菜单。余额写入统一调用 `changeUserBalance`；新增用户关联表时明确硬删除行为，不能遗漏日志或会话。
+普通用户数据从当前会话确定归属，缺少身份时立即失败；用户查询不能调用管理员的全量查询入口。余额写入统一调用管理员业务中的 `changeUserBalance`；新增用户关联表时明确硬删除行为，不能遗漏日志或会话。
 
 API 统一返回 `{ status, data, error }`，错误同时使用对应 HTTP 状态码；分页数据为 `{ items, pagination: { page, pageSize, total } }`。普通函数返回业务数据或抛错；单条查询无结果返回 `null`。
 
-列表查询校验已定义的分页、搜索参数，并忽略额外查询字段。
+列表查询校验已定义的分页、搜索参数，并忽略额外查询字段。用户余额日志接口不接受 `userId`，传入时返回 400；查询身份始终来自会话。
 
 详细规范见 [AGENTS.md](AGENTS.md) 和 [CLAUDE.md](CLAUDE.md)，两者保持一致。
 

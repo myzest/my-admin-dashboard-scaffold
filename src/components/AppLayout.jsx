@@ -2,14 +2,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Avatar, Button, Menu } from '@arco-design/web-react';
 import { IconExport } from '@arco-design/web-react/icon';
-import { navigation } from '@/config/navigation';
-import { getHomePath } from '@/config/access';
 import SiteBrand from './SiteBrand';
 import styles from './AppLayout.module.css';
 
-export default function AppLayout({ user, onLogout, isLoggingOut, children }) {
+export default function AppLayout({
+  user,
+  navigation,
+  title,
+  homePath,
+  onLogout,
+  isLoggingOut,
+  children,
+}) {
   const router = useRouter();
-  const items = navigation.filter((item) => !item.roles || item.roles.includes(user.role));
 
   return (
     <div className={styles.layout}>
@@ -17,11 +22,11 @@ export default function AppLayout({ user, onLogout, isLoggingOut, children }) {
         跳到主要内容
       </a>
       <aside className={styles.sidebar} aria-label="主导航">
-        <Link href={getHomePath(user)} className={styles.brand}>
+        <Link href={homePath} className={styles.brand}>
           <SiteBrand iconClassName={styles.brandIcon} />
         </Link>
         <Menu selectedKeys={[router.pathname]} onClickMenuItem={(path) => router.push(path)}>
-          {items.map(({ path, label, icon: Icon }) => (
+          {navigation.map(({ path, label, icon: Icon }) => (
             <Menu.Item key={path}>
               <Icon />
               {label}
@@ -32,9 +37,7 @@ export default function AppLayout({ user, onLogout, isLoggingOut, children }) {
 
       <div className={styles.workspace}>
         <header className={styles.header}>
-          <span className={styles.workspaceLabel}>
-            {user.role === 'admin' ? '管理工作台' : '个人工作台'}
-          </span>
+          <span className={styles.workspaceLabel}>{title}</span>
           <div className={styles.account}>
             <Avatar
               size={30}

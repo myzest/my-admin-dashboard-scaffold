@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Alert, Button, Input, Message, Modal, Space } from '@arco-design/web-react';
 import { IconPlus, IconRefresh, IconSearch } from '@arco-design/web-react/icon';
 import useSWR from 'swr';
-import { AuthenticatedLayout, useAuthRequest } from '@/modules/auth/client';
+import { useAuthRequest } from '@/modules/auth/client';
+import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
 import RequestError from '@/components/RequestError';
 import CategoryFormModal from './CategoryFormModal';
@@ -21,12 +22,15 @@ export default function CategoriesPage({ user }) {
   const [mutationError, setMutationError] = useState(null);
   const request = useAuthRequest();
   const query = new URLSearchParams({ page, pageSize, search });
-  const { data, error, isLoading, isValidating, mutate } = useSWR(`/api/categories?${query}`, {
-    onSuccess: (result) => {
-      const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
-      if (page > lastPage) setPage(lastPage);
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    `/api/admin/categories?${query}`,
+    {
+      onSuccess: (result) => {
+        const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
+        if (page > lastPage) setPage(lastPage);
+      },
     },
-  });
+  );
 
   function openEditor(category = null) {
     setMutationError(null);
@@ -47,7 +51,7 @@ export default function CategoriesPage({ user }) {
     setMutationError(null);
     try {
       const category = editor.category;
-      await request(category ? `/api/categories/${category.id}` : '/api/categories', {
+      await request(category ? `/api/admin/categories/${category.id}` : '/api/admin/categories', {
         method: category ? 'PUT' : 'POST',
         body: values,
       });
@@ -65,7 +69,7 @@ export default function CategoriesPage({ user }) {
     setIsMutating(true);
     setMutationError(null);
     try {
-      await request(`/api/categories/${deletingCategory.id}`, { method: 'DELETE' });
+      await request(`/api/admin/categories/${deletingCategory.id}`, { method: 'DELETE' });
       setDeletingCategory(null);
       message.success('分类已删除');
       await refreshList();
@@ -83,7 +87,7 @@ export default function CategoriesPage({ user }) {
   }
 
   return (
-    <AuthenticatedLayout user={user}>
+    <AdminLayout user={user}>
       {messageHolder}
       <PageHeader title="分类管理" description="管理分类名称、说明和启用状态。">
         <Button type="primary" icon={<IconPlus />} onClick={() => openEditor()}>
@@ -163,6 +167,6 @@ export default function CategoriesPage({ user }) {
           ) : null}
         </Space>
       </Modal>
-    </AuthenticatedLayout>
+    </AdminLayout>
   );
 }

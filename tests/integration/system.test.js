@@ -16,10 +16,10 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
   let admin;
   try {
     await context.test('unauthenticated pages and API reject access', async () => {
-      const page = await fetch(`${baseUrl}/categories`, { redirect: 'manual' });
+      const page = await fetch(`${baseUrl}/admin/categories`, { redirect: 'manual' });
       assert.equal(page.status, 307);
       assert.equal(page.headers.get('location'), '/login');
-      const api = await call('/api/categories');
+      const api = await call('/api/admin/categories');
       assert.equal(api.response.status, 401);
       assert.equal(api.payload.error.code, 'UNAUTHENTICATED');
     });
@@ -41,7 +41,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
           401,
         );
         assert.equal(
-          (await call('/api/auth/me', { method: 'POST', raw: '{' })).response.status,
+          (await call('/api/admin/me', { method: 'POST', raw: '{' })).response.status,
           405,
         );
         const oversized = await call('/api/auth/login', {
@@ -81,7 +81,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
         assert.equal(result.response.status, 415);
         assert.equal(result.payload.error.code, 'INVALID_CONTENT_TYPE');
       }
-      for (const path of ['/api/auth/login', '/api/categories']) {
+      for (const path of ['/api/auth/login', '/api/admin/categories']) {
         const response = await fetch(`${baseUrl}${path}`, {
           method: 'OPTIONS',
           headers: {
@@ -112,8 +112,8 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
         assert.match(admin.balance, /^\d+\.\d{4}$/);
         assert.equal(Object.hasOwn(admin, 'passwordHash'), false);
         assert.equal(Object.hasOwn(admin, 'password'), false);
-        assert.deepEqual((await call('/api/auth/me', { cookie })).data.user, admin);
-        const page = await fetch(`${baseUrl}/categories`, { headers: { Cookie: cookie } });
+        assert.deepEqual((await call('/api/admin/me', { cookie })).data.user, admin);
+        const page = await fetch(`${baseUrl}/admin/categories`, { headers: { Cookie: cookie } });
         assert.equal(page.status, 200);
         assert.match(page.headers.get('cache-control'), /no-store/);
         assert.ok(!(await page.text()).includes('passwordHash'));
@@ -125,7 +125,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
     await context.test(
       'create, search, update and pagination use real persistent rows',
       async () => {
-        const created = await call('/api/categories', {
+        const created = await call('/api/admin/categories', {
           method: 'POST',
           cookie,
           body: { name, description: '测试说明', isEnabled: true },
@@ -134,12 +134,12 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
         categoryId = created.data.id;
         createdIds.add(categoryId);
         const listed = await call(
-          `/api/categories?search=${encodeURIComponent(name)}&page=1&pageSize=1&_t=1`,
+          `/api/admin/categories?search=${encodeURIComponent(name)}&page=1&pageSize=1&_t=1`,
           { cookie },
         );
         assert.equal(listed.data.items[0].id, categoryId);
         assert.deepEqual(listed.data.pagination, { page: 1, pageSize: 1, total: 1 });
-        const updated = await call(`/api/categories/${categoryId}`, {
+        const updated = await call(`/api/admin/categories/${categoryId}`, {
           method: 'PUT',
           cookie,
           origin: 'http://localhost:3000',
@@ -147,7 +147,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
         });
         assert.equal(updated.data.isEnabled, false);
         assert.equal(
-          (await call(`/api/categories/${categoryId}`, { cookie })).data.description,
+          (await call(`/api/admin/categories/${categoryId}`, { cookie })).data.description,
           '已修改',
         );
         const [rows] = await database.query('SELECT is_enabled FROM categories WHERE id = :id', {
@@ -161,24 +161,27 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
       'reject duplicate names, invalid fields and excessive page sizes',
       async () => {
         assert.equal(
-          (await call('/api/categories', { method: 'POST', cookie, body: { name } })).response
+          (await call('/api/admin/categories', { method: 'POST', cookie, body: { name } })).response
             .status,
           409,
         );
         assert.equal(
-          (await call('/api/categories', { method: 'POST', cookie, body: { name: '   ' } }))
+          (await call('/api/admin/categories', { method: 'POST', cookie, body: { name: '   ' } }))
             .response.status,
           400,
         );
         assert.equal(
-          (await call('/api/categories', { method: 'POST', cookie, body: { name, id: 500 } }))
+          (await call('/api/admin/categories', { method: 'POST', cookie, body: { name, id: 500 } }))
             .response.status,
           400,
         );
-        assert.equal((await call('/api/categories?pageSize=101', { cookie })).response.status, 400);
+        assert.equal(
+          (await call('/api/admin/categories?pageSize=101', { cookie })).response.status,
+          400,
+        );
         assert.equal(
           (
-            await call(`/api/categories/${categoryId}`, {
+            await call(`/api/admin/categories/${categoryId}`, {
               method: 'DELETE',
               cookie,
               contentType: 'text/plain',
@@ -192,7 +195,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
     await context.test('concurrent identical creates yield exactly one row', async () => {
       const results = await Promise.all(
         Array.from({ length: 4 }, () =>
-          call('/api/categories', {
+          call('/api/admin/categories', {
             method: 'POST',
             cookie,
             body: { name: `${name}-parallel` },
@@ -206,14 +209,14 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
 
     await context.test('search treats percent and underscore as literal characters', async () => {
       const literalName = `${name}%_`;
-      const created = await call('/api/categories', {
+      const created = await call('/api/admin/categories', {
         method: 'POST',
         cookie,
         body: { name: literalName },
       });
       assert.equal(created.response.status, 201);
       createdIds.add(created.data.id);
-      const result = await call(`/api/categories?search=${encodeURIComponent(literalName)}`, {
+      const result = await call(`/api/admin/categories?search=${encodeURIComponent(literalName)}`, {
         cookie,
       });
       assert.equal(result.data.pagination.total, 1);
@@ -222,12 +225,14 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
 
     await context.test('delete returns not-found on repeat', async () => {
       assert.equal(
-        (await call(`/api/categories/${categoryId}`, { method: 'DELETE', cookie })).response.status,
+        (await call(`/api/admin/categories/${categoryId}`, { method: 'DELETE', cookie })).response
+          .status,
         200,
       );
       createdIds.delete(categoryId);
       assert.equal(
-        (await call(`/api/categories/${categoryId}`, { method: 'DELETE', cookie })).response.status,
+        (await call(`/api/admin/categories/${categoryId}`, { method: 'DELETE', cookie })).response
+          .status,
         404,
       );
     });
@@ -252,7 +257,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
             { sessionId },
             { password: process.env.SESSION_SECRET, ttl: 3600 },
           );
-          const result = await call('/api/auth/me', { cookie: `starter_session=${sealed}` });
+          const result = await call('/api/admin/me', { cookie: `starter_session=${sealed}` });
           assert.equal(result.response.status, 401);
         } finally {
           await database.query('DELETE FROM sessions WHERE id = :id', {
@@ -267,7 +272,7 @@ test('real MySQL: authentication, validation, CRUD, concurrency and session revo
         (await call('/api/auth/logout', { method: 'POST', cookie })).response.status,
         200,
       );
-      assert.equal((await call('/api/auth/me', { cookie })).response.status, 401);
+      assert.equal((await call('/api/admin/me', { cookie })).response.status, 401);
     });
   } finally {
     for (const id of createdIds) {

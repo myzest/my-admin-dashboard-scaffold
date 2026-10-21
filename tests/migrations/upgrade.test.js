@@ -5,17 +5,12 @@ import { test } from 'node:test';
 import bcrypt from 'bcryptjs';
 import { createMigrator } from '../../database/migrator.js';
 import { getDatabase } from '../../src/server/database.js';
-import {
-  authenticateUser,
-  changeUserBalance,
-  createUser,
-  getUserById,
-  seedAdmin,
-} from '../../src/modules/users/server.js';
+import { changeUserBalance, createUser, seedAdmin } from '../../src/modules/users/admin/server.js';
+import { authenticateUser, getUserById } from '../../src/modules/users/server.js';
 import {
   getRegistrationSettings,
   updateRegistrationSettings,
-} from '../../src/modules/settings/server.js';
+} from '../../src/modules/settings/admin/server.js';
 
 assert.ok(
   process.env.DB_NAME?.endsWith('_migration_test'),

@@ -1,3 +1,5 @@
+const homePaths = { admin: '/admin/users', user: '/user/dashboard' };
+
 export function getHomePath(user) {
-  return user.role === 'admin' ? '/users' : '/dashboard';
+  return homePaths[user.role] || '/login';
 }

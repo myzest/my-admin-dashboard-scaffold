@@ -29,14 +29,14 @@ test('admin and ordinary users complete registration, balance and account flows'
 
   try {
     await login(page, process.env.ADMIN_USERNAME, process.env.ADMIN_PASSWORD);
-    await expect(page).toHaveURL(/\/users$/);
+    await expect(page).toHaveURL('/admin/users');
     await expect(page).toHaveTitle(`用户管理 · ${site.name}`);
     await expect(page.getByRole('complementary', { name: '主导航' })).toContainText(site.name);
-    const settingResponse = await page.request.get('/api/settings/registration');
+    const settingResponse = await page.request.get('/api/admin/settings/registration');
     expect(settingResponse.status()).toBe(200);
     previousRegistration = (await settingResponse.json()).data.allowRegistration;
     expect(typeof previousRegistration).toBe('boolean');
-    const closed = await page.request.put('/api/settings/registration', {
+    const closed = await page.request.put('/api/admin/settings/registration', {
       data: { allowRegistration: false },
     });
     expect(closed.status()).toBe(200);
@@ -47,7 +47,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     await dialog.getByLabel('显示名称', { exact: true }).fill('浏览器测试用户');
     await dialog.getByLabel('密码', { exact: true }).fill(password);
     const createResponse = page.waitForResponse(
-      (response) => response.url().endsWith('/api/users') && response.request().method() === 'POST',
+      (response) =>
+        response.url().endsWith('/api/admin/users') && response.request().method() === 'POST',
     );
     await dialog.getByRole('button', { name: '创建用户', exact: true }).click();
     const created = await createResponse;
@@ -67,7 +68,7 @@ test('admin and ordinary users complete registration, balance and account flows'
       dialog.getByText('金额最多支持 16 位整数和 4 位小数', { exact: true }),
     ).toBeVisible();
     await dialog.getByLabel('金额', { exact: true }).fill('1.2345');
-    const balanceRoute = `**/api/users/${userId}/balance`;
+    const balanceRoute = `**/api/admin/users/${userId}/balance`;
     const balanceRequests = [];
     let firstBalanceStatus;
     await page.route(balanceRoute, async (route) => {
@@ -135,12 +136,13 @@ test('admin and ordinary users complete registration, balance and account flows'
     expect(balanceRequests).toHaveLength(3);
     expect(balanceRequests[1]).toEqual(balanceRequests[0]);
     expect(balanceRequests[2]).toEqual(balanceRequests[0]);
-    const storedLogs = await page.request.get(`/api/balance-logs?userId=${userId}`);
+    const storedLogs = await page.request.get(`/api/admin/balance-logs?userId=${userId}`);
     expect((await storedLogs.json()).data.pagination.total).toBe(1);
     await expect(row).toContainText('1.2345');
     await page.screenshot({ path: '.local/screenshots/users.png', fullPage: true });
 
     await row.getByRole('link', { name: '日志', exact: true }).click();
+    await expect(page).toHaveURL(`/admin/balance-logs?userId=${userId}`);
     await expect(page.getByRole('heading', { name: '余额日志', exact: true })).toBeVisible();
     const logRow = page.getByRole('row').filter({ hasText: reason });
     await expect(logRow).toContainText(username);
@@ -158,14 +160,14 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(memberPage.getByText('当前未开放注册，请联系管理员创建账号。')).toBeVisible();
     await expect(memberPage.getByRole('button', { name: '创建账号', exact: true })).toHaveCount(0);
 
-    await page.goto('/settings');
+    await page.goto('/admin/settings');
     await expect(page.getByRole('heading', { name: '系统设置', exact: true })).toBeVisible();
     const registrationSwitch = page.getByRole('switch', { name: '允许自行注册' });
     await expect(registrationSwitch).toHaveAttribute('aria-checked', 'false');
     await registrationSwitch.click();
     const saveResponse = page.waitForResponse(
       (response) =>
-        response.url().endsWith('/api/settings/registration') &&
+        response.url().endsWith('/api/admin/settings/registration') &&
         response.request().method() === 'PUT',
     );
     await page.getByRole('button', { name: '保存设置', exact: true }).click();
@@ -185,10 +187,10 @@ test('admin and ordinary users complete registration, balance and account flows'
     const registered = await registerResponse;
     expect(registered.status()).toBe(201);
     ids.add((await registered.json()).data.user.id);
-    await expect(memberPage).toHaveURL(/\/login\?registered=1$/);
+    await expect(memberPage).toHaveURL('/login?registered=1');
 
     await login(memberPage, username, password);
-    await expect(memberPage).toHaveURL(/\/dashboard$/);
+    await expect(memberPage).toHaveURL('/user/dashboard');
     await expect(memberPage.getByText('1.2345', { exact: true })).toBeVisible();
     await expect(memberPage.getByRole('menuitem', { name: '工作台', exact: true })).toBeVisible();
     for (const name of ['用户管理', '分类示例', '系统设置']) {
@@ -196,7 +198,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     }
     expect(
       (
-        await page.request.post(`/api/users/${userId}/balance`, {
+        await page.request.post(`/api/admin/users/${userId}/balance`, {
           data: {
             direction: 'increase',
             amount: '0.0001',
@@ -208,7 +210,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     ).toBe(200);
     await memberPage.getByRole('button', { name: '刷新', exact: true }).click();
     await expect(memberPage.getByText('1.2346', { exact: true })).toBeVisible();
-    await memberPage.route('**/api/auth/me', (route) =>
+    await memberPage.route('**/api/user/me', (route) =>
       route.fulfill({
         status: 503,
         json: {
@@ -221,10 +223,10 @@ test('admin and ordinary users complete registration, balance and account flows'
     await memberPage.getByRole('button', { name: '刷新', exact: true }).click();
     await expect(memberPage.getByRole('alert').filter({ hasText: '刷新暂不可用' })).toBeVisible();
     await expect(memberPage.getByText('1.2346', { exact: true })).toBeVisible();
-    await memberPage.unroute('**/api/auth/me');
+    await memberPage.unroute('**/api/user/me');
     expect(
       (
-        await page.request.post(`/api/users/${userId}/balance`, {
+        await page.request.post(`/api/admin/users/${userId}/balance`, {
           data: {
             direction: 'decrease',
             amount: '0.0001',
@@ -246,29 +248,29 @@ test('admin and ordinary users complete registration, balance and account flows'
       fullPage: true,
     });
     await memberPage.setViewportSize({ width: 1440, height: 960 });
-    await memberPage.goto('/users');
-    await expect(memberPage).toHaveURL(/\/dashboard$/);
-    await memberPage.goto('/balance-logs');
+    await memberPage.goto('/admin/users');
+    await expect(memberPage).toHaveURL('/user/dashboard');
+    await memberPage.goto('/user/balance-logs');
     await expect(memberPage.getByRole('row').filter({ hasText: reason })).toContainText('1.2345');
     await expect(memberPage.getByLabel('按用户 ID 筛选')).toHaveCount(0);
-    expect((await memberPage.request.get('/api/users')).status()).toBe(403);
+    expect((await memberPage.request.get('/api/admin/users')).status()).toBe(403);
 
-    await page.goto('/users');
+    await page.goto('/admin/users');
     await row.getByRole('button', { name: '停用', exact: true }).click();
     await expect(dialog).toContainText('账号、余额和日志仍会保留');
     await dialog.getByRole('button', { name: '确认停用', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(row).toContainText('已停用');
     await expect(row).toContainText('1.2345');
-    await memberPage.goto('/dashboard');
-    await expect(memberPage).toHaveURL(/\/login$/);
+    await memberPage.goto('/user/dashboard');
+    await expect(memberPage).toHaveURL('/login');
     await row.getByRole('button', { name: '启用', exact: true }).click();
     await dialog.getByRole('button', { name: '确认启用', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(row).toContainText('已启用');
-    expect((await memberPage.request.get('/api/auth/me')).status()).toBe(401);
+    expect((await memberPage.request.get('/api/user/me')).status()).toBe(401);
     await login(memberPage, username, accountPassword);
-    await expect(memberPage).toHaveURL(/\/dashboard$/);
+    await expect(memberPage).toHaveURL('/user/dashboard');
 
     await row.getByRole('button', { name: '重置密码', exact: true }).click();
     await expect(dialog).toContainText('所有设备上的登录会话都会失效');
@@ -285,54 +287,68 @@ test('admin and ordinary users complete registration, balance and account flows'
     await dialog.getByLabel('新密码', { exact: true }).fill(accountPassword);
     await dialog.getByRole('button', { name: '确认重置', exact: true }).click();
     await expect(dialog).toBeHidden();
-    await memberPage.goto('/dashboard');
-    await expect(memberPage).toHaveURL(/\/login$/);
+    await memberPage.goto('/user/dashboard');
+    await expect(memberPage).toHaveURL('/login');
     await login(memberPage, username, accountPassword);
-    await expect(memberPage).toHaveURL(/\/dashboard$/);
+    await expect(memberPage).toHaveURL('/user/dashboard');
     await expect(memberPage.getByText('1.2345', { exact: true })).toBeVisible();
 
     const newPassword = `Changed-${randomUUID()}`;
-    await memberPage.goto('/profile');
+    await memberPage.goto('/user/profile');
     const passwordRegion = memberPage.getByRole('region', { name: '修改密码', exact: true });
     await passwordRegion.getByLabel('当前密码', { exact: true }).fill('incorrect-password');
     await passwordRegion.getByLabel('新密码', { exact: true }).fill(newPassword);
     await passwordRegion.getByRole('button', { name: '修改密码', exact: true }).click();
     await expect(passwordRegion.getByRole('alert')).toContainText('原密码不正确');
-    await expect(memberPage).toHaveURL(/\/profile$/);
+    await expect(memberPage).toHaveURL('/user/profile');
     await passwordRegion.getByLabel('当前密码', { exact: true }).fill(accountPassword);
     await passwordRegion.getByRole('button', { name: '修改密码', exact: true }).click();
-    await expect(memberPage).toHaveURL(/\/login\?passwordChanged=1$/);
+    await expect(memberPage).toHaveURL('/login?passwordChanged=1');
     await login(memberPage, username, newPassword);
-    await expect(memberPage).toHaveURL(/\/dashboard$/);
+    await expect(memberPage).toHaveURL('/user/dashboard');
     await expect(memberPage.getByText('1.2345', { exact: true })).toBeVisible();
 
-    await page.goto('/users');
+    await page.goto('/admin/users');
     await row.getByRole('button', { name: '删除', exact: true }).click();
     await expect(dialog).toContainText('1.2345');
     await dialog.getByRole('button', { name: '确认删除', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(row).toHaveCount(0);
     ids.delete(userId);
-    expect((await memberPage.request.get('/api/auth/me')).status()).toBe(401);
-    await memberPage.goto('/dashboard');
-    await expect(memberPage).toHaveURL(/\/login$/);
+    expect((await memberPage.request.get('/api/user/me')).status()).toBe(401);
+    await memberPage.goto('/user/dashboard');
+    await expect(memberPage).toHaveURL('/login');
 
     await login(memberPage, registeredUsername, password);
-    await expect(memberPage).toHaveURL(/\/dashboard$/);
+    await expect(memberPage).toHaveURL('/user/dashboard');
     await expect(memberPage.getByText('0.0000', { exact: true })).toBeVisible();
     await memberPage.getByRole('button', { name: '退出', exact: true }).click();
-    await expect(memberPage).toHaveURL(/\/login$/);
+    await expect(memberPage).toHaveURL('/login');
+
+    // Reuse the same browser context to catch stale role menus and account caches.
+    await login(memberPage, process.env.ADMIN_USERNAME, process.env.ADMIN_PASSWORD);
+    await expect(memberPage).toHaveURL('/admin/users');
+    await expect(memberPage.getByRole('menuitem', { name: '工作台', exact: true })).toHaveCount(0);
+    for (const name of ['用户管理', '分类示例', '系统设置']) {
+      await expect(memberPage.getByRole('menuitem', { name, exact: true })).toBeVisible();
+    }
+    await memberPage.getByRole('menuitem', { name: '余额日志', exact: true }).click();
+    await expect(memberPage).toHaveURL('/admin/balance-logs');
+    await expect(memberPage.getByLabel('按用户 ID 筛选')).toBeVisible();
+    expect((await memberPage.request.get('/api/user/me')).status()).toBe(403);
+    await memberPage.getByRole('button', { name: '退出', exact: true }).click();
+    await expect(memberPage).toHaveURL('/login');
     expect(errors).toEqual([]);
   } finally {
     try {
       if (typeof previousRegistration === 'boolean') {
-        const restored = await page.request.put('/api/settings/registration', {
+        const restored = await page.request.put('/api/admin/settings/registration', {
           data: { allowRegistration: previousRegistration },
         });
         expect(restored.status()).toBe(200);
       }
       for (const id of ids) {
-        const removed = await page.request.delete(`/api/users/${id}`, { data: {} });
+        const removed = await page.request.delete(`/api/admin/users/${id}`, { data: {} });
         expect([200, 404]).toContain(removed.status());
       }
       await page.request.post('/api/auth/logout', { data: {} });

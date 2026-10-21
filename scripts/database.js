@@ -1,7 +1,7 @@
 import './load-env.js';
 import { createMigrator } from '../database/migrator.js';
 import { getDatabase } from '../src/server/database.js';
-import { seedAdmin } from '../src/modules/users/server.js';
+import { seedAdmin } from '../src/modules/users/admin/server.js';
 
 const command = process.argv[2];
 if (!['migrate', 'seed', 'setup'].includes(command)) {

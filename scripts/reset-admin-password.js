@@ -1,6 +1,7 @@
 import './load-env.js';
 import { input, password } from '@inquirer/prompts';
-import { loginSchema, resetAdminPassword } from '../src/modules/auth/server.js';
+import { loginSchema } from '../src/modules/auth/server.js';
+import { resetAdminPassword } from '../src/modules/users/admin/server.js';
 import { passwordSchema } from '../src/modules/users/server.js';
 import { getDatabase } from '../src/server/database.js';
 import { HttpError } from '../src/server/errors.js';

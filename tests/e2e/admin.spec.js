@@ -11,7 +11,7 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
 
   async function findCreatedCategory(categoryName) {
     const response = await page.request.get(
-      `/api/categories?search=${encodeURIComponent(categoryName)}`,
+      `/api/admin/categories?search=${encodeURIComponent(categoryName)}`,
     );
     const { data } = await response.json();
     const item = data.items.find((category) => category.name === categoryName);
@@ -20,8 +20,8 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
   }
 
   try {
-    await page.goto('/categories');
-    await expect(page).toHaveURL(/\/login$/);
+    await page.goto('/admin/categories');
+    await expect(page).toHaveURL('/login');
     await page.screenshot({ path: '.local/screenshots/login.png', fullPage: true });
     await page.getByRole('button', { name: '登录', exact: true }).click();
     await expect(page.getByText('请输入账号', { exact: true })).toBeVisible();
@@ -33,8 +33,8 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     );
     await page.getByLabel('密码', { exact: true }).fill(process.env.ADMIN_PASSWORD);
     await page.getByRole('button', { name: '登录', exact: true }).click();
-    await expect(page).toHaveURL(/\/users$/);
-    await page.goto('/categories');
+    await expect(page).toHaveURL('/admin/users');
+    await page.goto('/admin/categories');
 
     await page.getByRole('button', { name: '新增分类' }).click();
     const dialog = page.getByRole('dialog');
@@ -66,7 +66,7 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     await page.getByRole('button', { name: '查询', exact: true }).click();
     await expect(row).toBeVisible();
 
-    await page.route('**/api/categories?*', (route) =>
+    await page.route('**/api/admin/categories?*', (route) =>
       route.fulfill({
         status: 503,
         json: {
@@ -80,13 +80,13 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     await expect(page.getByRole('region', { name: '分类列表' }).getByRole('alert')).toContainText(
       '服务暂时不可用',
     );
-    await page.unroute('**/api/categories?*');
+    await page.unroute('**/api/admin/categories?*');
     await page.getByRole('button', { name: '重试', exact: true }).click();
     await expect(page.getByRole('region', { name: '分类列表' }).getByRole('alert')).toBeHidden();
     await expect(row).toBeVisible();
 
     for (let index = 0; index < 10; index++) {
-      const response = await page.request.post('/api/categories', {
+      const response = await page.request.post('/api/admin/categories', {
         data: { name: `服务公告-${name}-${index}`, description: '分类分页验证' },
       });
       expect(response.status()).toBe(201);
@@ -115,18 +115,18 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     );
 
     for (const id of ids) {
-      const response = await page.request.delete(`/api/categories/${id}`, { data: {} });
+      const response = await page.request.delete(`/api/admin/categories/${id}`, { data: {} });
       expect([200, 404]).toContain(response.status());
     }
     ids.clear();
     await page.getByRole('button', { name: '退出', exact: true }).click();
-    await expect(page).toHaveURL(/\/login$/);
-    await page.goto('/categories');
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL('/login');
+    await page.goto('/admin/categories');
+    await expect(page).toHaveURL('/login');
     expect(errors).toEqual([]);
   } finally {
     for (const id of ids) {
-      await page.request.delete(`/api/categories/${id}`, { data: {} });
+      await page.request.delete(`/api/admin/categories/${id}`, { data: {} });
     }
     await page.request.post('/api/auth/logout', { data: {} });
   }

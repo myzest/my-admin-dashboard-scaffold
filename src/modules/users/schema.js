@@ -71,3 +71,9 @@ export const balanceLogQuerySchema = z.object({
   pageSize: pageSizeSchema,
   userId: userIdSchema.optional(),
 });
+
+export const myBalanceLogQuerySchema = z.object({
+  page: pageSchema,
+  pageSize: pageSizeSchema,
+  userId: z.never().optional(),
+});

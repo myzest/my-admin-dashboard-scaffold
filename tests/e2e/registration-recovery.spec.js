@@ -13,17 +13,19 @@ test('a rejected registration keeps the entered account fields', async ({ page, 
     await page.getByLabel('账号', { exact: true }).fill(process.env.ADMIN_USERNAME);
     await page.getByLabel('密码', { exact: true }).fill(process.env.ADMIN_PASSWORD);
     await page.getByRole('button', { name: '登录', exact: true }).click();
-    await expect(page).toHaveURL(/\/users$/);
+    await expect(page).toHaveURL('/admin/users');
 
-    const settings = await page.request.get('/api/settings/registration');
+    const settings = await page.request.get('/api/admin/settings/registration');
     expect(settings.status()).toBe(200);
     previousRegistration = (await settings.json()).data.allowRegistration;
     expect(
       (
-        await page.request.put('/api/settings/registration', { data: { allowRegistration: true } })
+        await page.request.put('/api/admin/settings/registration', {
+          data: { allowRegistration: true },
+        })
       ).status(),
     ).toBe(200);
-    const created = await page.request.post('/api/users', { data: { username, password } });
+    const created = await page.request.post('/api/admin/users', { data: { username, password } });
     expect(created.status()).toBe(201);
     userId = (await created.json()).data.id;
 
@@ -45,7 +47,9 @@ test('a rejected registration keeps the entered account fields', async ({ page, 
 
     expect(
       (
-        await page.request.put('/api/settings/registration', { data: { allowRegistration: false } })
+        await page.request.put('/api/admin/settings/registration', {
+          data: { allowRegistration: false },
+        })
       ).status(),
     ).toBe(200);
     await guestPage.getByLabel('用户名', { exact: true }).fill(`${username}_closed`);
@@ -57,16 +61,16 @@ test('a rejected registration keeps the entered account fields', async ({ page, 
       if (typeof previousRegistration === 'boolean') {
         expect(
           (
-            await page.request.put('/api/settings/registration', {
+            await page.request.put('/api/admin/settings/registration', {
               data: { allowRegistration: previousRegistration },
             })
           ).status(),
         ).toBe(200);
       }
       if (userId) {
-        expect((await page.request.delete(`/api/users/${userId}`, { data: {} })).status()).toBe(
-          200,
-        );
+        expect(
+          (await page.request.delete(`/api/admin/users/${userId}`, { data: {} })).status(),
+        ).toBe(200);
       }
       await page.request.post('/api/auth/logout', { data: {} });
     } finally {

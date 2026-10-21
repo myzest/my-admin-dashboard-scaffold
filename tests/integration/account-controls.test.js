@@ -6,19 +6,16 @@ import bcrypt from 'bcryptjs';
 import { sealData } from 'iron-session';
 import { getDatabase } from '../../src/server/database.js';
 import { getSessionModel } from '../../src/modules/auth/models.js';
+import { login } from '../../src/modules/auth/server.js';
+import { getBalanceLogModel, getUserModel } from '../../src/modules/users/models.js';
 import {
-  login,
+  changeUserBalance,
+  createUser,
   resetAdminPassword,
   resetUserPassword,
   updateUserStatus,
-} from '../../src/modules/auth/server.js';
-import { getBalanceLogModel, getUserModel } from '../../src/modules/users/models.js';
-import {
-  authenticateUser,
-  changeUserBalance,
-  createUser,
-  getUserById,
-} from '../../src/modules/users/server.js';
+} from '../../src/modules/users/admin/server.js';
+import { authenticateUser, getUserById } from '../../src/modules/users/server.js';
 import { call } from '../helpers/api.js';
 
 assert.ok(process.env.DB_NAME?.endsWith('_test'), '集成测试必须使用名称以 _test 结尾的独立数据库');
@@ -81,15 +78,20 @@ test('real MySQL: account status, password resets and atomic session revocation'
           ['status', 'PUT', { isEnabled: false }],
           ['password', 'POST', { newPassword: `Reset-${randomUUID()}` }],
         ]) {
-          const path = `/api/users/${member.id}/${action}`;
+          const path = `/api/admin/users/${member.id}/${action}`;
           assert.equal((await call(path, { method, body })).response.status, 401);
           assert.equal(
             (await call(path, { method, body, cookie: memberCookies[0] })).response.status,
             403,
           );
           assert.equal(
-            (await call(`/api/users/${admin.id}/${action}`, { method, body, cookie: adminCookie }))
-              .response.status,
+            (
+              await call(`/api/admin/users/${admin.id}/${action}`, {
+                method,
+                body,
+                cookie: adminCookie,
+              })
+            ).response.status,
             404,
           );
         }
@@ -104,7 +106,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
         for (const body of [{}, { isEnabled: 'false' }, { isEnabled: false, role: 'admin' }]) {
           assert.equal(
             (
-              await call(`/api/users/${member.id}/status`, {
+              await call(`/api/admin/users/${member.id}/status`, {
                 method: 'PUT',
                 cookie: adminCookie,
                 body,
@@ -120,7 +122,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
         ]) {
           assert.equal(
             (
-              await call(`/api/users/${member.id}/password`, {
+              await call(`/api/admin/users/${member.id}/password`, {
                 method: 'POST',
                 cookie: adminCookie,
                 body,
@@ -137,7 +139,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
     await context.test(
       'disabling revokes all sessions and preserves balances and logs',
       async () => {
-        const result = await call(`/api/users/${member.id}/status`, {
+        const result = await call(`/api/admin/users/${member.id}/status`, {
           method: 'PUT',
           cookie: adminCookie,
           body: { isEnabled: false },
@@ -148,20 +150,20 @@ test('real MySQL: account status, password resets and atomic session revocation'
         assert.equal(await getBalanceLogModel().count({ where: { userId: member.id } }), 1);
         assert.equal(await Session.count({ where: { userId: member.id } }), 0);
         for (const cookie of memberCookies) {
-          assert.equal((await call('/api/auth/me', { cookie })).response.status, 401);
+          assert.equal((await call('/api/user/me', { cookie })).response.status, 401);
         }
         await assert.rejects(authenticateUser({ username: member.username, password }), {
           status: 403,
           code: 'ACCOUNT_DISABLED',
         });
-        assert.equal((await call('/api/auth/me', { cookie: otherCookie })).response.status, 200);
+        assert.equal((await call('/api/user/me', { cookie: otherCookie })).response.status, 200);
       },
     );
 
     await context.test(
       'enabling permits authentication without restoring revoked sessions',
       async () => {
-        const result = await call(`/api/users/${member.id}/status`, {
+        const result = await call(`/api/admin/users/${member.id}/status`, {
           method: 'PUT',
           cookie: adminCookie,
           body: { isEnabled: true },
@@ -173,7 +175,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
           member.id,
         );
         for (const cookie of memberCookies) {
-          assert.equal((await call('/api/auth/me', { cookie })).response.status, 401);
+          assert.equal((await call('/api/user/me', { cookie })).response.status, 401);
         }
         assert.equal(await Session.count({ where: { userId: member.id } }), 0);
         memberCookies = [await createSession(member.id), await createSession(member.id)];
@@ -184,7 +186,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
       'resetting changes only the target password and revokes all of its sessions',
       async () => {
         const newPassword = '123456';
-        const result = await call(`/api/users/${member.id}/password`, {
+        const result = await call(`/api/admin/users/${member.id}/password`, {
           method: 'POST',
           cookie: adminCookie,
           body: { newPassword },
@@ -199,13 +201,13 @@ test('real MySQL: account status, password resets and atomic session revocation'
           member.id,
         );
         for (const cookie of memberCookies) {
-          assert.equal((await call('/api/auth/me', { cookie })).response.status, 401);
+          assert.equal((await call('/api/user/me', { cookie })).response.status, 401);
         }
         assert.equal(await Session.count({ where: { userId: member.id } }), 0);
         assert.equal((await getUserById(member.id)).balance, '1.2345');
         assert.equal(await getBalanceLogModel().count({ where: { userId: member.id } }), 1);
         assert.equal((await authenticateUser({ username: other.username, password })).id, other.id);
-        assert.equal((await call('/api/auth/me', { cookie: otherCookie })).response.status, 200);
+        assert.equal((await call('/api/user/me', { cookie: otherCookie })).response.status, 200);
         currentPassword = newPassword;
       },
     );
@@ -259,7 +261,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
           before,
         );
         assert.equal(await Session.count({ where: { userId: member.id } }), 1);
-        assert.equal((await call('/api/auth/me', { cookie })).response.status, 200);
+        assert.equal((await call('/api/user/me', { cookie })).response.status, 200);
       },
     );
 
@@ -283,7 +285,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
       } else {
         const [setCookie] = headers.get('set-cookie');
         assert.equal(
-          (await call('/api/auth/me', { cookie: setCookie.split(';')[0] })).response.status,
+          (await call('/api/user/me', { cookie: setCookie.split(';')[0] })).response.status,
           401,
         );
       }
@@ -313,7 +315,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
         });
         assert.equal(recovered.role, 'admin');
         assert.equal(recovered.isEnabled, true);
-        assert.equal((await call('/api/auth/me', { cookie: adminCookie })).response.status, 401);
+        assert.equal((await call('/api/admin/me', { cookie: adminCookie })).response.status, 401);
         assert.equal(await Session.count({ where: { userId: admin.id } }), 0);
       },
     );

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { sealData } from 'iron-session';
 import { getDatabase } from '../../src/server/database.js';
 import { getBalanceLogModel } from '../../src/modules/users/models.js';
-import { changeUserBalance } from '../../src/modules/users/server.js';
+import { changeUserBalance } from '../../src/modules/users/admin/server.js';
 import { MAX_BALANCE } from '../../src/modules/users/money.js';
 import { baseUrl, call } from '../helpers/api.js';
 
@@ -33,7 +33,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
   }
 
   async function createUser(username) {
-    const result = await call('/api/users', {
+    const result = await call('/api/admin/users', {
       method: 'POST',
       cookie: adminCookie,
       body: { username, displayName: `测试 ${suffix}`, password },
@@ -44,7 +44,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
   }
 
   function setRegistration(allowRegistration) {
-    return call('/api/settings/registration', {
+    return call('/api/admin/settings/registration', {
       method: 'PUT',
       cookie: adminCookie,
       body: { allowRegistration },
@@ -52,7 +52,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
   }
 
   function adjustBalance(userId, values = {}) {
-    return call(`/api/users/${userId}/balance`, {
+    return call(`/api/admin/users/${userId}/balance`, {
       method: 'POST',
       cookie: adminCookie,
       body: {
@@ -88,7 +88,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
     const adminLogin = await login(process.env.ADMIN_USERNAME, process.env.ADMIN_PASSWORD);
     adminCookie = adminLogin.cookie;
     const admin = adminLogin.user;
-    const setting = await call('/api/settings/registration', { cookie: adminCookie });
+    const setting = await call('/api/admin/settings/registration', { cookie: adminCookie });
     assert.equal(setting.response.status, 200);
     previousRegistration = setting.data.allowRegistration;
     assert.equal(typeof previousRegistration, 'boolean');
@@ -113,39 +113,42 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
         assert.equal(user.role, 'user');
         assert.equal(user.balance, '0.0000');
         assert.equal(Object.hasOwn(user, 'passwordHash'), false);
-        const listed = await call(`/api/users?search=${user.username}&page=1&pageSize=1&_t=1`, {
-          cookie: adminCookie,
-        });
+        const listed = await call(
+          `/api/admin/users?search=${user.username}&page=1&pageSize=1&_t=1`,
+          {
+            cookie: adminCookie,
+          },
+        );
         assert.deepEqual(listed.data.pagination, { page: 1, pageSize: 1, total: 1 });
         assert.equal(listed.data.items[0].id, user.id);
-        const updated = await call(`/api/users/${user.id}`, {
+        const updated = await call(`/api/admin/users/${user.id}`, {
           method: 'PUT',
           cookie: adminCookie,
           body: { username: user.username, displayName: '已编辑的普通用户' },
         });
         assert.equal(updated.data.displayName, '已编辑的普通用户');
         assert.equal(updated.data.balance, '0.0000');
-        const duplicate = await call('/api/users', {
+        const duplicate = await call('/api/admin/users', {
           method: 'POST',
           cookie: adminCookie,
           body: { username: user.username, displayName: '重复', password },
         });
         assert.equal(duplicate.response.status, 409);
         assert.equal(duplicate.payload.error.code, 'USERNAME_EXISTS');
-        const users = await call('/api/users', { cookie: adminCookie });
+        const users = await call('/api/admin/users', { cookie: adminCookie });
         assert.ok(users.data.items.every((item) => item.role === 'user'));
       },
     );
 
     await context.test('user endpoints reject role and balance mass assignment', async () => {
       for (const extra of [{ role: 'admin' }, { balance: '999.0000' }, { id: admin.id }]) {
-        const created = await call('/api/users', {
+        const created = await call('/api/admin/users', {
           method: 'POST',
           cookie: adminCookie,
           body: { username: user.username, displayName: '测试', password, ...extra },
         });
         assert.equal(created.response.status, 400);
-        const updated = await call(`/api/users/${user.id}`, {
+        const updated = await call(`/api/admin/users/${user.id}`, {
           method: 'PUT',
           cookie: adminCookie,
           body: { username: user.username, displayName: '测试', ...extra },
@@ -153,14 +156,14 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
         assert.equal(updated.response.status, 400);
       }
       for (const method of ['PUT', 'DELETE']) {
-        const result = await call(`/api/users/${admin.id}`, {
+        const result = await call(`/api/admin/users/${admin.id}`, {
           method,
           cookie: adminCookie,
           body: { username: `protected_${suffix}`, displayName: '不可修改' },
         });
         assert.ok([403, 404].includes(result.response.status));
       }
-      assert.deepEqual((await call('/api/auth/me', { cookie: adminCookie })).data.user, admin);
+      assert.deepEqual((await call('/api/admin/me', { cookie: adminCookie })).data.user, admin);
     });
 
     await context.test(
@@ -196,22 +199,28 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
     await context.test(
       'ordinary users enter their dashboard but cannot use admin APIs',
       async () => {
-        const me = await call('/api/auth/me', { cookie: userCookie });
+        const me = await call('/api/user/me', { cookie: userCookie });
         assert.equal(me.data.user.id, user.id);
         assert.equal(me.data.user.role, 'user');
         assert.equal(Object.hasOwn(me.data.user, 'passwordHash'), false);
-        const dashboard = await fetch(`${baseUrl}/dashboard`, { headers: { Cookie: userCookie } });
+        const dashboard = await fetch(`${baseUrl}/user/dashboard`, {
+          headers: { Cookie: userCookie },
+        });
         assert.equal(dashboard.status, 200);
-        for (const path of ['/api/users', '/api/categories', '/api/settings/registration']) {
+        for (const path of [
+          '/api/admin/users',
+          '/api/admin/categories',
+          '/api/admin/settings/registration',
+        ]) {
           const result = await call(path, { cookie: userCookie });
           assert.equal(result.response.status, 403);
           assert.equal(result.payload.error.code, 'FORBIDDEN');
         }
         for (const [path, method, body] of [
-          ['/api/users', 'POST', { username: `blocked_${suffix}`, password }],
-          [`/api/users/${user.id}`, 'DELETE', {}],
-          [`/api/users/${user.id}/balance`, 'POST', { amount: '1.0000' }],
-          ['/api/settings/registration', 'PUT', { allowRegistration: true }],
+          ['/api/admin/users', 'POST', { username: `blocked_${suffix}`, password }],
+          [`/api/admin/users/${user.id}`, 'DELETE', {}],
+          [`/api/admin/users/${user.id}/balance`, 'POST', { amount: '1.0000' }],
+          ['/api/admin/settings/registration', 'PUT', { allowRegistration: true }],
         ]) {
           assert.equal(
             (await call(path, { method, body, cookie: userCookie })).response.status,
@@ -260,7 +269,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
       const state = await getStoredState(user.id);
       assert.equal(state.balance, '0.0000');
       assert.equal(state.logs, 11);
-      const logs = await call(`/api/balance-logs?userId=${user.id}&pageSize=100`, {
+      const logs = await call(`/api/admin/balance-logs?userId=${user.id}&pageSize=100`, {
         cookie: adminCookie,
       });
       assert.equal(logs.data.pagination.total, 11);
@@ -314,7 +323,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
           }),
         );
         for (const session of sessions) {
-          const current = await call('/api/auth/me', { cookie: session.cookie });
+          const current = await call('/api/user/me', { cookie: session.cookie });
           assert.equal(current.response.status, 200);
           assert.equal(current.data.user.id, session.user.id);
         }
@@ -336,20 +345,22 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
     );
 
     await context.test('ordinary users can only read their own balance logs', async () => {
-      for (const query of ['', `?userId=${user.id}`]) {
-        const logs = await call(`/api/balance-logs${query}`, { cookie: userCookie });
-        assert.equal(logs.response.status, 200);
-        assert.equal(logs.data.pagination.total, 12);
-        assert.ok(logs.data.items.every((item) => item.userId === user.id));
-        for (const item of logs.data.items) {
-          assert.match(item.changeAmount, /^-?\d+\.\d{4}$/);
-          assert.match(item.balanceBefore, /^\d+\.\d{4}$/);
-          assert.match(item.balanceAfter, /^\d+\.\d{4}$/);
-        }
+      const logs = await call('/api/user/balance-logs', { cookie: userCookie });
+      assert.equal(logs.response.status, 200);
+      assert.equal(logs.data.pagination.total, 12);
+      assert.ok(logs.data.items.every((item) => item.userId === user.id));
+      for (const item of logs.data.items) {
+        assert.match(item.changeAmount, /^-?\d+\.\d{4}$/);
+        assert.match(item.balanceBefore, /^\d+\.\d{4}$/);
+        assert.match(item.balanceAfter, /^\d+\.\d{4}$/);
       }
-      const forbidden = await call(`/api/balance-logs?userId=${other.id}`, { cookie: userCookie });
-      assert.equal(forbidden.response.status, 403);
-      assert.equal(forbidden.payload.error.code, 'FORBIDDEN');
+      for (const userId of [user.id, other.id, '', 'invalid']) {
+        const rejected = await call(`/api/user/balance-logs?userId=${userId}`, {
+          cookie: userCookie,
+        });
+        assert.equal(rejected.response.status, 400);
+        assert.equal(rejected.payload.error.code, 'VALIDATION_ERROR');
+      }
     });
 
     await context.test('a failed log write rolls back the balance change', async (subtest) => {
@@ -379,15 +390,15 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
 
     await context.test('changing a password revokes every existing user session', async () => {
       const nextPassword = `Changed-${randomUUID()}`;
-      const rejected = await call('/api/auth/password', {
+      const rejected = await call('/api/user/password', {
         method: 'POST',
         cookie: userCookie,
         body: { currentPassword: 'incorrect-password', newPassword: nextPassword },
       });
       assert.equal(rejected.response.status, 400);
       assert.equal(rejected.payload.error.code, 'INVALID_CURRENT_PASSWORD');
-      assert.equal((await call('/api/auth/me', { cookie: userCookie })).response.status, 200);
-      const changed = await call('/api/auth/password', {
+      assert.equal((await call('/api/user/me', { cookie: userCookie })).response.status, 200);
+      const changed = await call('/api/user/password', {
         method: 'POST',
         cookie: userCookie,
         body: { currentPassword: password, newPassword: nextPassword },
@@ -395,7 +406,7 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
       assert.equal(changed.response.status, 200);
       assert.match(changed.response.headers.get('set-cookie'), /Max-Age=0/);
       for (const cookie of [userCookie, secondSession.cookie]) {
-        assert.equal((await call('/api/auth/me', { cookie })).response.status, 401);
+        assert.equal((await call('/api/user/me', { cookie })).response.status, 401);
       }
       assert.equal((await getStoredState(user.id)).sessions, 0);
       userCookie = (await login(user.username, nextPassword)).cookie;
@@ -410,14 +421,14 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
       'a nonzero-balance user can be hard deleted with logs and sessions',
       async () => {
         const otherSession = await login(other.username, password);
-        const deleted = await call(`/api/users/${other.id}`, {
+        const deleted = await call(`/api/admin/users/${other.id}`, {
           method: 'DELETE',
           cookie: adminCookie,
         });
         assert.equal(deleted.response.status, 200);
         assert.deepEqual(await getStoredState(other.id), { balance: null, logs: 0, sessions: 0 });
         assert.equal(
-          (await call('/api/auth/me', { cookie: otherSession.cookie })).response.status,
+          (await call('/api/user/me', { cookie: otherSession.cookie })).response.status,
           401,
         );
         createdIds.delete(other.id);
@@ -428,13 +439,13 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
       'concurrent deletion and adjustment leave no orphaned user data',
       async () => {
         const [deleted, ...adjustments] = await Promise.all([
-          call(`/api/users/${user.id}`, { method: 'DELETE', cookie: adminCookie }),
+          call(`/api/admin/users/${user.id}`, { method: 'DELETE', cookie: adminCookie }),
           ...Array.from({ length: 4 }, () => adjustBalance(user.id, { amount: '0.0001' })),
         ]);
         assert.equal(deleted.response.status, 200);
         assert.ok(adjustments.every(({ response }) => [200, 404].includes(response.status)));
         assert.deepEqual(await getStoredState(user.id), { balance: null, logs: 0, sessions: 0 });
-        assert.equal((await call('/api/auth/me', { cookie: userCookie })).response.status, 401);
+        assert.equal((await call('/api/user/me', { cookie: userCookie })).response.status, 401);
         createdIds.delete(user.id);
       },
     );
