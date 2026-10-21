@@ -1,4 +1,4 @@
-import { changeUserBalance, balanceChangeSchema, userIdSchema } from '@/modules/users/admin/server';
+import { changeUserBalance, userIdSchema } from '@/modules/users/admin/server';
 import { createApiHandler } from '@/server/api-handler';
 
 export const config = { api: { bodyParser: false } };
@@ -6,7 +6,7 @@ export const config = { api: { bodyParser: false } };
 export default createApiHandler(
   {
     POST: ({ req, body, user }) =>
-      changeUserBalance(userIdSchema.parse(req.query.id), balanceChangeSchema.parse(body), user.id),
+      changeUserBalance(userIdSchema.parse(req.query.id), body, user.id),
   },
   { role: 'admin' },
 );

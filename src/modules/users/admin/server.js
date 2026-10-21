@@ -12,10 +12,4 @@ export {
 } from './service.js';
 export { createUserAccount as createUser } from '../service.js';
 export { changeUserBalance, listBalanceLogs } from './balance-service.js';
-export {
-  createUserSchema,
-  updateUserSchema,
-  userQuerySchema,
-  userIdSchema,
-  balanceChangeSchema,
-} from '../schema.js';
+export { userIdSchema } from '../schema.js';
