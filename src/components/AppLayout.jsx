@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Avatar, Button, Menu } from '@arco-design/web-react';
-import { IconApps, IconExport } from '@arco-design/web-react/icon';
+import { IconExport } from '@arco-design/web-react/icon';
 import { navigation } from '@/config/navigation';
 import { getHomePath } from '@/config/access';
+import SiteBrand from './SiteBrand';
 import styles from './AppLayout.module.css';
 
 export default function AppLayout({ user, onLogout, isLoggingOut, children }) {
@@ -17,10 +18,7 @@ export default function AppLayout({ user, onLogout, isLoggingOut, children }) {
       </a>
       <aside className={styles.sidebar} aria-label="主导航">
         <Link href={getHomePath(user)} className={styles.brand}>
-          <span className={styles.brandIcon}>
-            <IconApps />
-          </span>
-          <span>后台管理</span>
+          <SiteBrand iconClassName={styles.brandIcon} />
         </Link>
         <Menu selectedKeys={[router.pathname]} onClickMenuItem={(path) => router.push(path)}>
           {items.map(({ path, label, icon: Icon }) => (

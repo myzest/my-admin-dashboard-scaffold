@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import { site } from '@/config/site';
 import { RegisterForm } from '@/modules/auth/client';
 import { getCurrentUser } from '@/modules/auth/server';
 import { getHomePath } from '@/config/access';
@@ -7,7 +8,7 @@ export default function RegisterPage() {
   return (
     <>
       <Head>
-        <title>注册 · 后台管理</title>
+        <title>{`注册 · ${site.name}`}</title>
       </Head>
       <RegisterForm />
     </>

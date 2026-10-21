@@ -9,8 +9,10 @@ import {
   changePasswordSchema,
   createUserSchema,
   initialAdminSchema,
+  resetPasswordSchema,
   updateUserSchema,
   userQuerySchema,
+  userStatusSchema,
 } from './schema.js';
 
 // Unknown usernames perform the same password work as existing accounts.
@@ -18,7 +20,7 @@ const DUMMY_PASSWORD_HASH = '$2b$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUg
 
 function getPublicUser(user) {
   return {
-    ...pick(user, ['id', 'username', 'displayName', 'role']),
+    ...pick(user, ['id', 'username', 'displayName', 'role', 'isEnabled']),
     balance: formatMoney(user.balance),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
@@ -43,6 +45,9 @@ export async function authenticateUser({ username, password }, { transaction } =
   if (!user || !isValidPassword) {
     throw new HttpError(401, 'INVALID_CREDENTIALS', '用户名或密码错误');
   }
+  if (!user.isEnabled) {
+    throw new HttpError(403, 'ACCOUNT_DISABLED', '账号已停用，请联系管理员');
+  }
   return getPublicUser(user);
 }
 
@@ -55,6 +60,30 @@ export async function changeUserPassword(id, values, { transaction } = {}) {
   }
   await user.update({ passwordHash: await bcrypt.hash(newPassword, 12) }, { transaction });
   return {};
+}
+
+export async function resetAccountPassword(account, values, { transaction } = {}) {
+  const { newPassword } = resetPasswordSchema.parse(values);
+  const user = await getUserModel().findOne({
+    where: account,
+    transaction,
+    lock: transaction?.LOCK.UPDATE,
+  });
+  if (!user) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在');
+  await user.update({ passwordHash: await bcrypt.hash(newPassword, 12) }, { transaction });
+  return getPublicUser(user);
+}
+
+export async function updateUserStatus(id, values, { transaction } = {}) {
+  const { isEnabled } = userStatusSchema.parse(values);
+  const user = await getUserModel().findOne({
+    where: { id, role: 'user' },
+    transaction,
+    lock: transaction?.LOCK.UPDATE,
+  });
+  if (!user) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在');
+  await user.update({ isEnabled }, { transaction });
+  return getPublicUser(user);
 }
 
 export async function seedAdmin() {

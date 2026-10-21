@@ -23,11 +23,18 @@
   text-decoration: none;
 }
 
+.brand > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .brandIcon {
   display: grid;
   place-items: center;
   width: 34px;
   height: 34px;
+  flex-shrink: 0;
+  overflow: hidden;
   border-radius: 9px;
   background: var(--app-accent);
   color: white;

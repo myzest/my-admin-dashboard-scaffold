@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Button, Empty, Space, Table } from '@arco-design/web-react';
+import { Button, Empty, Space, Table, Tag } from '@arco-design/web-react';
 import { formatDateTime } from '@/utils/date';
 import styles from '@/styles/workspace.module.css';
 
@@ -13,11 +13,21 @@ export default function UserTable({
   onEdit,
   onDelete,
   onAdjustBalance,
+  onResetPassword,
+  onChangeStatus,
 }) {
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 70 },
     { title: '用户名', dataIndex: 'username', width: 160, ellipsis: true },
     { title: '显示名称', dataIndex: 'displayName', width: 160, ellipsis: true },
+    {
+      title: '状态',
+      dataIndex: 'isEnabled',
+      width: 100,
+      render: (isEnabled) => (
+        <Tag color={isEnabled ? 'green' : 'gray'}>{isEnabled ? '已启用' : '已停用'}</Tag>
+      ),
+    },
     {
       title: '余额',
       dataIndex: 'balance',
@@ -30,19 +40,29 @@ export default function UserTable({
       key: 'actions',
       width: 290,
       render: (_, user) => (
-        <Space size={4}>
-          <Button type="text" size="small" onClick={() => onEdit(user)}>
-            编辑
-          </Button>
-          <Button type="text" size="small" onClick={() => onAdjustBalance(user)}>
-            调整余额
-          </Button>
-          <Link href={`/balance-logs?userId=${user.id}`} className={styles.link}>
-            日志
-          </Link>
-          <Button type="text" size="small" status="danger" onClick={() => onDelete(user)}>
-            删除
-          </Button>
+        <Space direction="vertical" size={0}>
+          <Space size={4}>
+            <Button type="text" size="small" onClick={() => onEdit(user)}>
+              编辑
+            </Button>
+            <Button type="text" size="small" onClick={() => onAdjustBalance(user)}>
+              调整余额
+            </Button>
+            <Link href={`/balance-logs?userId=${user.id}`} className={styles.link}>
+              日志
+            </Link>
+          </Space>
+          <Space size={4}>
+            <Button type="text" size="small" onClick={() => onResetPassword(user)}>
+              重置密码
+            </Button>
+            <Button type="text" size="small" onClick={() => onChangeStatus(user)}>
+              {user.isEnabled ? '停用' : '启用'}
+            </Button>
+            <Button type="text" size="small" status="danger" onClick={() => onDelete(user)}>
+              删除
+            </Button>
+          </Space>
         </Space>
       ),
     },
@@ -55,7 +75,7 @@ export default function UserTable({
       data={data?.items || []}
       loading={isLoading}
       border={false}
-      scroll={{ x: 1020 }}
+      scroll={{ x: 1120 }}
       pagination={{
         current: page,
         pageSize,

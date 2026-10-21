@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Form, Message, Spin, Switch } from '@arco-design/web-react';
-import useSWR, { useSWRConfig } from 'swr';
+import useSWR from 'swr';
 import { AuthenticatedLayout, useAuthRequest } from '@/modules/auth/client';
 import PageHeader from '@/components/PageHeader';
 import RequestError from '@/components/RequestError';
@@ -11,7 +11,6 @@ export default function SettingsPage({ user }) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const request = useAuthRequest();
-  const { mutate: mutateCache } = useSWRConfig();
   const { data, error, isLoading, mutate } = useSWR('/api/settings/registration');
 
   async function saveSettings(values) {
@@ -20,7 +19,6 @@ export default function SettingsPage({ user }) {
     try {
       const result = await request('/api/settings/registration', { method: 'PUT', body: values });
       await mutate(result, { revalidate: false });
-      await mutateCache('/api/auth/registration', result, { revalidate: false });
       message.success('注册设置已保存');
     } catch (requestError) {
       setSaveError(requestError);

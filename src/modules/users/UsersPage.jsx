@@ -8,6 +8,7 @@ import { AuthenticatedLayout, useAuthRequest } from '@/modules/auth/client';
 import { BalanceAdjustmentModal } from '@/modules/balance/client';
 import UserFormModal from './UserFormModal';
 import UserTable from './UserTable';
+import ResetPasswordModal from './ResetPasswordModal';
 import styles from '@/styles/workspace.module.css';
 
 export default function UsersPage({ user }) {
@@ -19,6 +20,8 @@ export default function UsersPage({ user }) {
   const [editor, setEditor] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
   const [balanceUser, setBalanceUser] = useState(null);
+  const [resetUser, setResetUser] = useState(null);
+  const [statusUser, setStatusUser] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [mutationError, setMutationError] = useState(null);
   const request = useAuthRequest();
@@ -79,6 +82,26 @@ export default function UsersPage({ user }) {
     }
   }
 
+  async function updateStatus() {
+    if (isSaving) return;
+    const isEnabled = !statusUser.isEnabled;
+    setIsSaving(true);
+    setMutationError(null);
+    try {
+      await request(`/api/users/${statusUser.id}/status`, {
+        method: 'PUT',
+        body: { isEnabled },
+      });
+      setStatusUser(null);
+      message.success(isEnabled ? '用户已启用' : '用户已停用，登录会话已撤销');
+      await refreshList();
+    } catch (requestError) {
+      setMutationError(requestError);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <AuthenticatedLayout user={user}>
       {messageHolder}
@@ -130,6 +153,11 @@ export default function UsersPage({ user }) {
               setDeletingUser(account);
             }}
             onAdjustBalance={setBalanceUser}
+            onResetPassword={setResetUser}
+            onChangeStatus={(account) => {
+              setMutationError(null);
+              setStatusUser(account);
+            }}
           />
         ) : null}
       </section>
@@ -154,6 +182,38 @@ export default function UsersPage({ user }) {
           }}
         />
       ) : null}
+      {resetUser ? (
+        <ResetPasswordModal
+          user={resetUser}
+          onCancel={() => setResetUser(null)}
+          onSuccess={() => {
+            setResetUser(null);
+            message.success('密码已重置，登录会话已撤销');
+          }}
+        />
+      ) : null}
+      <Modal
+        title={statusUser?.isEnabled ? '停用用户' : '启用用户'}
+        visible={Boolean(statusUser)}
+        unmountOnExit
+        maskClosable={false}
+        closable={!isSaving}
+        escToExit={!isSaving}
+        confirmLoading={isSaving}
+        okText={statusUser?.isEnabled ? '确认停用' : '确认启用'}
+        cancelText="取消"
+        cancelButtonProps={{ disabled: isSaving }}
+        onOk={updateStatus}
+        onCancel={() => setStatusUser(null)}
+        style={{ width: 'min(480px, calc(100vw - 32px))' }}
+      >
+        <p className={styles.description}>
+          {statusUser?.isEnabled
+            ? `确认停用“${statusUser.username}”吗？该用户将无法登录，已有登录会话会被撤销；账号、余额和日志仍会保留。`
+            : `确认启用“${statusUser?.username}”吗？该用户可以重新登录，旧登录会话不会恢复。`}
+        </p>
+        <RequestError error={mutationError} />
+      </Modal>
       <Modal
         title="删除用户"
         visible={Boolean(deletingUser)}

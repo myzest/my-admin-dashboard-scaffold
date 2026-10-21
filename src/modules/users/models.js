@@ -13,6 +13,7 @@ export function getUserModel() {
         displayName: { type: DataTypes.STRING(64), allowNull: false, defaultValue: '' },
         passwordHash: { type: DataTypes.STRING(255), allowNull: false },
         role: { type: DataTypes.STRING(16), allowNull: false, defaultValue: 'user' },
+        isEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
         balance: { type: DataTypes.DECIMAL(20, 4), allowNull: false, defaultValue: '0.0000' },
       },
       { tableName: 'users' },

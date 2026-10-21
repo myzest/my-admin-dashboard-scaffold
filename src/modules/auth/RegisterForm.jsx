@@ -36,7 +36,7 @@ export default function RegisterForm() {
       {!loadError && data?.allowRegistration === false ? (
         <Alert type="info" content="当前未开放注册，请联系管理员创建账号。" />
       ) : null}
-      {!loadError && data?.allowRegistration ? (
+      {data?.allowRegistration ? (
         <>
           <RequestError error={error} />
           <Form

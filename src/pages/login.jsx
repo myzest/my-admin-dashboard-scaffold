@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import { site } from '@/config/site';
 import { LoginForm } from '@/modules/auth/client';
 import { getCurrentUser } from '@/modules/auth/server';
 import { getHomePath } from '@/config/access';
@@ -7,7 +8,7 @@ export default function LoginPage() {
   return (
     <>
       <Head>
-        <title>登录 · 后台管理</title>
+        <title>{`登录 · ${site.name}`}</title>
       </Head>
       <LoginForm />
     </>

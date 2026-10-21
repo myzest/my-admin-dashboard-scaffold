@@ -3,13 +3,13 @@ import { z } from 'zod';
 export const usernameSchema = z
   .string()
   .trim()
-  .min(1, '请输入用户名')
+  .min(5, '用户名至少 5 位')
   .max(64, '用户名不能超过 64 个字符')
   .regex(/^[a-zA-Z0-9_-]+$/, '用户名只支持字母、数字、下划线和短横线');
 
 export const passwordSchema = z
   .string()
-  .min(12, '密码至少 12 位')
+  .min(6, '密码至少 6 位')
   .max(72, '密码不能超过 72 字节')
   .refine((value) => Buffer.byteLength(value, 'utf8') <= 72, '密码不能超过 72 字节');
 
@@ -28,6 +28,10 @@ export const createUserSchema = z
   .strict();
 
 export const updateUserSchema = createUserSchema.omit({ password: true });
+
+export const userStatusSchema = z.object({ isEnabled: z.boolean() }).strict();
+
+export const resetPasswordSchema = z.object({ newPassword: passwordSchema }).strict();
 
 export const userQuerySchema = z.object({
   page: pageSchema,

@@ -156,10 +156,11 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
         const result = await call(`/api/users/${admin.id}`, {
           method,
           cookie: adminCookie,
-          body: { username: admin.username, displayName: '不可修改' },
+          body: { username: `protected_${suffix}`, displayName: '不可修改' },
         });
         assert.ok([403, 404].includes(result.response.status));
       }
+      assert.deepEqual((await call('/api/auth/me', { cookie: adminCookie })).data.user, admin);
     });
 
     await context.test(

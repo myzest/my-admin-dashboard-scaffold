@@ -3,7 +3,14 @@ import { test } from 'node:test';
 import { request } from '../src/lib/request.js';
 import { categorySchema, categoryQuerySchema } from '../src/modules/categories/schema.js';
 import { loginSchema } from '../src/modules/auth/schema.js';
-import { initialAdminSchema } from '../src/modules/users/schema.js';
+import {
+  changePasswordSchema,
+  createUserSchema,
+  initialAdminSchema,
+  passwordSchema,
+  resetPasswordSchema,
+  updateUserSchema,
+} from '../src/modules/users/schema.js';
 
 test('input boundaries reject mass assignment, invalid pagination and bcrypt truncation', () => {
   assert.throws(() => categorySchema.parse({ name: '   ' }));
@@ -12,7 +19,32 @@ test('input boundaries reject mass assignment, invalid pagination and bcrypt tru
   assert.throws(() => categoryQuerySchema.parse({ page: '0' }));
   assert.throws(() => categoryQuerySchema.parse({ pageSize: '101' }));
   assert.throws(() => loginSchema.parse({ username: 'admin', password: '密'.repeat(25) }));
-  assert.throws(() => initialAdminSchema.parse({ username: 'admin', password: 'short' }));
+  assert.throws(() => initialAdminSchema.parse({ username: 'admin6', password: 'short' }));
+});
+
+test('account writes require five-character usernames and six-character passwords, including numeric passwords', () => {
+  const credentials = { username: 'user5', password: '123456' };
+  for (const schema of [createUserSchema, initialAdminSchema]) {
+    assert.equal(schema.parse(credentials).password, '123456');
+    assert.throws(() => schema.parse({ ...credentials, username: 'user' }));
+    assert.throws(() => schema.parse({ ...credentials, password: '12345' }));
+  }
+  assert.equal(updateUserSchema.parse({ username: '12345' }).username, '12345');
+  assert.throws(() => updateUserSchema.parse({ username: 'user' }));
+  for (const schema of [resetPasswordSchema, changePasswordSchema]) {
+    const values = {
+      ...(schema === changePasswordSchema ? { currentPassword: 'legacy-password' } : {}),
+      newPassword: '123456',
+    };
+    assert.equal(schema.parse(values).newPassword, '123456');
+    assert.throws(() => schema.parse({ ...values, newPassword: '12345' }));
+  }
+  assert.equal(passwordSchema.parse('密'.repeat(24)), '密'.repeat(24));
+  assert.throws(() => passwordSchema.parse('密'.repeat(25)));
+  assert.deepEqual(loginSchema.parse({ username: 'root', password: '123456' }), {
+    username: 'root',
+    password: '123456',
+  });
 });
 
 test('list queries ignore extra fields while validating supported filters', () => {

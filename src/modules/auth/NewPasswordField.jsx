@@ -7,7 +7,7 @@ export default function NewPasswordField({ field = 'password', label = '密码' 
       field={field}
       rules={[
         { required: true, message: `请输入${label}` },
-        { minLength: 12, message: '密码至少 12 位' },
+        { minLength: 6, message: '密码至少 6 位' },
         {
           validator: (value, callback) =>
             callback(
@@ -18,7 +18,7 @@ export default function NewPasswordField({ field = 'password', label = '密码' 
         },
       ]}
     >
-      <Input.Password placeholder="至少 12 位" autoComplete="new-password" maxLength={72} />
+      <Input.Password placeholder="至少 6 位" autoComplete="new-password" maxLength={72} />
     </Form.Item>
   );
 }

@@ -1,15 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
+import { site } from '../../src/config/site.js';
 
 test('admin and ordinary users complete registration, balance and account flows', async ({
   page,
   browser,
 }) => {
   const suffix = randomUUID().slice(0, 8);
-  const username = `browser_${suffix}`;
+  const username = `u${suffix.slice(0, 4)}`;
   const registeredUsername = `registered_${suffix}`;
   const password = `Browser-${randomUUID()}`;
+  let accountPassword = password;
   const reason = `人工调整 ${suffix}`;
   const ids = new Set();
   const errors = [];
@@ -28,6 +30,8 @@ test('admin and ordinary users complete registration, balance and account flows'
   try {
     await login(page, process.env.ADMIN_USERNAME, process.env.ADMIN_PASSWORD);
     await expect(page).toHaveURL(/\/users$/);
+    await expect(page).toHaveTitle(`用户管理 · ${site.name}`);
+    await expect(page.getByRole('complementary', { name: '主导航' })).toContainText(site.name);
     const settingResponse = await page.request.get('/api/settings/registration');
     expect(settingResponse.status()).toBe(200);
     previousRegistration = (await settingResponse.json()).data.allowRegistration;
@@ -53,6 +57,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(dialog).toBeHidden();
     const row = page.getByRole('row').filter({ hasText: username });
     await expect(row).toContainText('0.0000');
+    await expect(row).toContainText('已启用');
 
     await row.getByRole('button', { name: '调整余额', exact: true }).click();
     await dialog.getByLabel('金额', { exact: true }).fill('1.23456');
@@ -248,6 +253,44 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(memberPage.getByLabel('按用户 ID 筛选')).toHaveCount(0);
     expect((await memberPage.request.get('/api/users')).status()).toBe(403);
 
+    await page.goto('/users');
+    await row.getByRole('button', { name: '停用', exact: true }).click();
+    await expect(dialog).toContainText('账号、余额和日志仍会保留');
+    await dialog.getByRole('button', { name: '确认停用', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(row).toContainText('已停用');
+    await expect(row).toContainText('1.2345');
+    await memberPage.goto('/dashboard');
+    await expect(memberPage).toHaveURL(/\/login$/);
+    await row.getByRole('button', { name: '启用', exact: true }).click();
+    await dialog.getByRole('button', { name: '确认启用', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(row).toContainText('已启用');
+    expect((await memberPage.request.get('/api/auth/me')).status()).toBe(401);
+    await login(memberPage, username, accountPassword);
+    await expect(memberPage).toHaveURL(/\/dashboard$/);
+
+    await row.getByRole('button', { name: '重置密码', exact: true }).click();
+    await expect(dialog).toContainText('所有设备上的登录会话都会失效');
+    await dialog.getByLabel('新密码', { exact: true }).fill('short');
+    await dialog.getByRole('button', { name: '确认重置', exact: true }).click();
+    await expect(dialog.getByText('密码至少 6 位', { exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: '.local/screenshots/reset-password-mobile.png', fullPage: true });
+    await page.setViewportSize({ width: 1440, height: 960 });
+    accountPassword = '123456';
+    await dialog.getByLabel('新密码', { exact: true }).fill(accountPassword);
+    await dialog.getByRole('button', { name: '确认重置', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await memberPage.goto('/dashboard');
+    await expect(memberPage).toHaveURL(/\/login$/);
+    await login(memberPage, username, accountPassword);
+    await expect(memberPage).toHaveURL(/\/dashboard$/);
+    await expect(memberPage.getByText('1.2345', { exact: true })).toBeVisible();
+
     const newPassword = `Changed-${randomUUID()}`;
     await memberPage.goto('/profile');
     const passwordRegion = memberPage.getByRole('region', { name: '修改密码', exact: true });
@@ -256,7 +299,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     await passwordRegion.getByRole('button', { name: '修改密码', exact: true }).click();
     await expect(passwordRegion.getByRole('alert')).toContainText('原密码不正确');
     await expect(memberPage).toHaveURL(/\/profile$/);
-    await passwordRegion.getByLabel('当前密码', { exact: true }).fill(password);
+    await passwordRegion.getByLabel('当前密码', { exact: true }).fill(accountPassword);
     await passwordRegion.getByRole('button', { name: '修改密码', exact: true }).click();
     await expect(memberPage).toHaveURL(/\/login\?passwordChanged=1$/);
     await login(memberPage, username, newPassword);

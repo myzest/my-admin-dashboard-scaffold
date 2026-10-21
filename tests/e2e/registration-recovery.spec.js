@@ -74,3 +74,53 @@ test('a rejected registration keeps the entered account fields', async ({ page, 
     }
   }
 });
+
+test('a failed registration settings revalidation preserves entered fields', async ({ page }) => {
+  let isFailing = false;
+  await page.route('**/api/auth/registration', (route) =>
+    route.fulfill({
+      status: isFailing ? 503 : 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        isFailing
+          ? {
+              status: false,
+              data: {},
+              error: { code: 'TEST_FAILURE', message: '注册设置暂不可用' },
+            }
+          : { status: true, data: { allowRegistration: true }, error: {} },
+      ),
+    }),
+  );
+  await page.goto('/register');
+  const alerts = page.getByRole('region', { name: '创建账号', exact: true }).getByRole('alert');
+  const values = { 用户名: 'reviewuser', 显示名称: '保留注册资料', 密码: '123456' };
+  for (const [label, value] of Object.entries(values)) {
+    await page.getByLabel(label, { exact: true }).fill(value);
+  }
+
+  async function expectEnteredFields() {
+    for (const [label, value] of Object.entries(values)) {
+      await expect(page.getByLabel(label, { exact: true })).toHaveValue(value);
+    }
+  }
+
+  // Reconnect after SWR's default two-second request deduplication interval.
+  await page.waitForTimeout(2300);
+  isFailing = true;
+  const failedResponse = page.waitForResponse(
+    (response) => response.url().endsWith('/api/auth/registration') && response.status() === 503,
+  );
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('offline'));
+    window.dispatchEvent(new Event('online'));
+  });
+  await failedResponse;
+  await expect(alerts).toContainText('注册设置暂不可用');
+  await expectEnteredFields();
+
+  isFailing = false;
+  await page.getByRole('button', { name: '重试', exact: true }).click();
+  await expect(alerts).toHaveCount(0);
+  await expectEnteredFields();
+});

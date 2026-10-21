@@ -9,6 +9,7 @@
   position: absolute;
   top: 30px;
   left: 36px;
+  right: 36px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -17,7 +18,17 @@
   color: var(--app-accent);
 }
 
-.brand svg {
+.brand > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.brandIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   font-size: 24px;
 }
 
@@ -70,6 +81,7 @@
   }
   .brand {
     left: 24px;
+    right: 24px;
   }
   .panel {
     padding: 28px 24px;

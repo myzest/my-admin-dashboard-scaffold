@@ -1,12 +1,11 @@
-import { IconApps } from '@arco-design/web-react/icon';
+import SiteBrand from '@/components/SiteBrand';
 import styles from './AuthPanel.module.css';
 
 export default function AuthPanel({ title, description, children }) {
   return (
     <main className={styles.page}>
       <div className={styles.brand}>
-        <IconApps />
-        后台管理
+        <SiteBrand iconClassName={styles.brandIcon} />
       </div>
       <section className={styles.panel} aria-labelledby="auth-title">
         <div className={styles.heading}>

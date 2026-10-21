@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import { site } from '@/config/site';
 import { CategoriesPage } from '@/modules/categories/client';
 import { requirePageAuth } from '@/modules/auth/server';
 
@@ -6,7 +7,7 @@ export default function CategoriesRoute({ user }) {
   return (
     <>
       <Head>
-        <title>分类管理 · 后台管理</title>
+        <title>{`分类管理 · ${site.name}`}</title>
       </Head>
       <CategoriesPage user={user} />
     </>

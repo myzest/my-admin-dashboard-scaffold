@@ -24,6 +24,7 @@ assert.ok(
 
 const initialMigration = '001-initial.js';
 const accountMigration = '002-users-balances-settings.js';
+const statusMigration = '003-user-status.js';
 const ownedTables = [
   'balance_logs',
   'sessions',
@@ -99,7 +100,7 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
   async function verifyLegacyUpgrade(migrator) {
     assert.deepEqual(
       (await migrator.executed()).map(({ name }) => name),
-      [initialMigration, accountMigration],
+      [initialMigration, accountMigration, statusMigration],
     );
     const [[admin]] = await database.query('SELECT * FROM users WHERE id = 41');
     assert.equal(admin.username, 'legacy_admin');
@@ -107,6 +108,7 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
     assert.equal(admin.role, 'admin');
     assert.equal(admin.display_name, 'legacy_admin');
     assert.equal(admin.balance, '0.0000');
+    assert.equal(admin.is_enabled, 1);
     assert.equal((await authenticateUser({ username: 'legacy_admin', password })).id, 41);
     const [[session]] = await database.query('SELECT * FROM sessions WHERE id = :id', {
       replacements: { id: sessionId },
@@ -133,10 +135,11 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
       },
     ]);
     const [[ordinaryUser]] = await database.query(
-      "SELECT role, balance FROM users WHERE username = 'default_role_user'",
+      "SELECT role, balance, is_enabled FROM users WHERE username = 'default_role_user'",
     );
     assert.equal(ordinaryUser.role, 'user');
     assert.equal(ordinaryUser.balance, '0.0000');
+    assert.equal(ordinaryUser.is_enabled, 1);
     await queryInterface.bulkDelete('users', { id: 41 });
     const [remainingSessions] = await database.query('SELECT id FROM sessions WHERE id = :id', {
       replacements: { id: sessionId },
@@ -163,6 +166,7 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
           const admin = await authenticateUser({ username: process.env.ADMIN_USERNAME, password });
           assert.equal(admin.role, 'admin');
           assert.equal(admin.balance, '0.0000');
+          assert.equal(admin.isEnabled, true);
           const user = await createUser({
             username: 'existing_member',
             displayName: '已有用户',
@@ -179,15 +183,18 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
             admin.id,
           );
           await updateRegistrationSettings({ allowRegistration: true });
+          await queryInterface.bulkUpdate('users', { is_enabled: false }, { id: user.id });
           assert.deepEqual(await migrator.up(), []);
           assert.deepEqual(await seedAdmin(), { created: false });
           // Simulate completion before Umzug recorded the migration, then replay the actual runner.
           await queryInterface.bulkDelete('sequelize_meta', { name: accountMigration });
+          await queryInterface.bulkDelete('sequelize_meta', { name: statusMigration });
           await migrator.up();
           const retained = await getUserById(user.id);
           assert.equal(retained.role, 'user');
           assert.equal(retained.displayName, '已有用户');
           assert.equal(retained.balance, '1234567890123456.7890');
+          assert.equal(retained.isEnabled, false);
           assert.deepEqual(await getRegistrationSettings(), { allowRegistration: true });
           const [[logs]] = await database.query(
             'SELECT COUNT(*) AS total FROM balance_logs WHERE user_id = :id',
@@ -210,7 +217,22 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
         'existing administrator, session and category survive an ordinary upgrade',
         async () => {
           const migrator = await createLegacyFixture();
+          await migrator.up({ to: accountMigration });
+          await queryInterface.bulkInsert('users', [
+            {
+              id: 42,
+              username: 'pre_status_user',
+              password_hash: passwordHash,
+              role: 'user',
+              balance: '3.4567',
+              created_at: now,
+              updated_at: now,
+            },
+          ]);
           await migrator.up();
+          const existingUser = await getUserById(42);
+          assert.equal(existingUser.isEnabled, true);
+          assert.equal(existingUser.balance, '3.4567');
           await verifyLegacyUpgrade(migrator);
         },
       ))
@@ -243,8 +265,14 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
         method: 'createTable',
         matches: ([table]) => table === 'system_settings',
       },
+      {
+        name: 'user enablement column',
+        method: 'addColumn',
+        matches: ([table, column]) => table === 'users' && column === 'is_enabled',
+        executed: [initialMigration, accountMigration],
+      },
     ];
-    for (const { name, method, matches } of checkpoints) {
+    for (const { name, method, matches, executed = [initialMigration] } of checkpoints) {
       const completed = await scenario(
         `upgrade resumes after committed ${name}`,
         async (subtest) => {
@@ -263,7 +291,7 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
           }
           assert.deepEqual(
             (await migrator.executed()).map(({ name: migrationName }) => migrationName),
-            [initialMigration],
+            executed,
           );
           await migrator.up();
           await verifyLegacyUpgrade(migrator);
