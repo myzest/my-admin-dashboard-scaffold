@@ -1,6 +1,6 @@
 import { spawn, fork } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, readdir, rm } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createTestEnvironment, getTestBuildDirectory } from './test-config.js';
@@ -100,11 +100,7 @@ try {
       const testEnv = { ...env, TEST_BASE_URL: server.baseUrl };
       console.log(`运行 ${suite}：${server.baseUrl}，数据库 ${env.DB_NAME}`);
       if (suite === 'integration') {
-        const files = (await readdir(path.join(root, 'tests/integration')))
-          .filter((file) => file.endsWith('.test.js'))
-          .sort()
-          .map((file) => `tests/integration/${file}`);
-        await run(['--test', ...files], testEnv, server.child);
+        await run(['--test', 'tests/integration/*.test.js'], testEnv, server.child);
       } else {
         await run(
           [fileURLToPath(import.meta.resolve('@playwright/test/cli')), 'test'],
