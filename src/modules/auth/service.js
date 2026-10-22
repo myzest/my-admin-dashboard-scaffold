@@ -31,7 +31,6 @@ async function checkAuthRate(limiter, req, res, code, message) {
 
 export async function login(req, res, credentials) {
   await checkAuthRate(loginLimiter, req, res, 'LOGIN_RATE_LIMITED', '登录尝试过于频繁，请稍后重试');
-  await getSessionModel().destroy({ where: { expiresAt: { [Op.lte]: new Date() } } });
   const session = await getSession(req, res);
   const sessionId = randomUUID();
   // Revoked session IDs may be missing; READ COMMITTED avoids locking their key gaps.

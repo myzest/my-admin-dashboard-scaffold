@@ -70,6 +70,8 @@ test('runner owns the database config, session secret, build identity and target
       DB_PASSWORD: 'business-password',
       ADMIN_PASSWORD: 'business-admin-password',
       SESSION_SECRET: 'business-session-secret',
+      REDIS_URL: 'redis://business.invalid:6379',
+      JOB_QUEUE_PREFIX: 'business',
       TRUSTED_PROXY_IPS: '127.0.0.1',
       TEST_BASE_URL: 'http://127.0.0.1:3000',
       TEST_RUN_ID: '../../outside',
@@ -82,6 +84,8 @@ test('runner owns the database config, session secret, build identity and target
     assert.equal(environment.TRUSTED_PROXY_IPS, '');
     assert.equal(environment.SESSION_SECRET.length, 64);
     assert.equal(environment.TEST_BASE_URL, undefined);
+    assert.equal(environment.REDIS_URL, undefined);
+    assert.equal(environment.JOB_QUEUE_PREFIX, undefined);
     assert.match(getTestBuildDirectory(environment.TEST_RUN_ID), /^\.local\/test-build-/);
     assert.throws(() => getTestBuildDirectory('../../outside'), /测试运行标识无效/);
   });

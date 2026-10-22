@@ -11,6 +11,14 @@ const databaseSchema = z.object({
 });
 
 const sessionSchema = z.object({ SESSION_SECRET: z.string().min(32) });
+const jobSchema = z.object({
+  REDIS_URL: z.url({ protocol: /^rediss?$/, hostname: /^.+$/ }),
+  JOB_QUEUE_PREFIX: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{1,64}$/)
+    .default('admin-starter'),
+  JOB_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(1),
+});
 const proxySchema = z.object({
   TRUSTED_PROXY_IPS: z
     .string()
@@ -22,6 +30,7 @@ const proxySchema = z.object({
 let databaseConfig;
 let sessionConfig;
 let proxyConfig;
+let jobConfig;
 
 function readConfig(schema) {
   const result = schema.safeParse(process.env);
@@ -42,4 +51,8 @@ export function getSessionConfig() {
 
 export function getProxyConfig() {
   return (proxyConfig ||= readConfig(proxySchema));
+}
+
+export function getJobConfig() {
+  return (jobConfig ||= readConfig(jobSchema));
 }

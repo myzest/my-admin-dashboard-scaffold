@@ -19,7 +19,9 @@ const testConfigSchema = z
 
 export function getTestBuildDirectory(runId) {
   if (!z.uuid().safeParse(runId).success) {
-    throw new Error('测试运行标识无效，请使用 npm run test:integration / test:e2e / test:system');
+    throw new Error(
+      '测试运行标识无效，请使用 npm run test:integration / test:e2e / test:system / test:jobs',
+    );
   }
   return `.local/test-build-${runId}`;
 }
@@ -41,7 +43,7 @@ export function createTestEnvironment(configPath, inherited = process.env) {
   }
   const environment = Object.fromEntries(
     Object.entries(inherited).filter(
-      ([key]) => !/^(DB_|ADMIN_|SESSION_|TEST_|TRUSTED_PROXY_IPS$)/.test(key),
+      ([key]) => !/^(DB_|ADMIN_|SESSION_|TEST_|REDIS_|JOB_|TRUSTED_PROXY_IPS$)/.test(key),
     ),
   );
   return {

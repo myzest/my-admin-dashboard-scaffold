@@ -85,16 +85,21 @@ async function startServer(env) {
 }
 
 try {
-  if (!['integration', 'e2e', 'system'].includes(mode) || process.argv.length !== 3) {
-    throw new Error('用法：npm run test:integration / test:e2e / test:system');
+  if (!['integration', 'e2e', 'system', 'jobs'].includes(mode) || process.argv.length !== 3) {
+    throw new Error('用法：npm run test:integration / test:e2e / test:system / test:jobs');
   }
   const env = createTestEnvironment(path.join(root, '.env.test.local'));
-  buildDirectory = path.join(root, getTestBuildDirectory(env.TEST_RUN_ID));
-  await mkdir(buildDirectory, { recursive: true });
   await run(['scripts/database.js', 'setup'], env);
-  await run([fileURLToPath(import.meta.resolve('next/dist/bin/next')), 'build'], env);
+  if (mode === 'jobs') {
+    await run(['--test', 'tests/jobs/*.test.js'], env);
+  } else {
+    buildDirectory = path.join(root, getTestBuildDirectory(env.TEST_RUN_ID));
+    await mkdir(buildDirectory, { recursive: true });
+    await run([fileURLToPath(import.meta.resolve('next/dist/bin/next')), 'build'], env);
+  }
 
-  for (const suite of mode === 'system' ? ['integration', 'e2e'] : [mode]) {
+  const suites = { jobs: [], system: ['integration', 'e2e'] }[mode] ?? [mode];
+  for (const suite of suites) {
     const server = await startServer(env);
     try {
       const testEnv = { ...env, TEST_BASE_URL: server.baseUrl };

@@ -131,6 +131,8 @@ location / {
 
 ## 增加业务模块
 
+后台任务使用 BullMQ + Redis，由独立进程 `npm run worker` 执行。首个示例为每小时清理过期会话，支持手动投递、结果查询、失败重试和 Worker 重启恢复。普通页面和登录不需要 Redis；运行 Worker 前需配置 Redis 持久化、`REDIS_URL` 和环境独立的 `JOB_QUEUE_PREFIX`。启动、扩展及验证见 [后台任务与定时调度](docs/background-jobs.md)。
+
 ```text
 src/
   pages/admin/           管理员页面
@@ -147,6 +149,7 @@ src/
   components/            通用展示组件
   config/                两端菜单、登录后的首页与站点配置
   lib/request.js         浏览器统一请求函数
+  jobs/registry.js        后台任务定义、参数校验与定时规则
   server/                数据库连接、配置与 API 处理
 database/migrations/     数据库迁移
 ```

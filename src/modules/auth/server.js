@@ -8,6 +8,7 @@ export {
 } from './service.js';
 export { loginSchema } from './schema.js';
 export { revokeUserSessions } from './session.js';
+export { deleteExpiredSessions } from './session-maintenance.js';
 export {
   changePasswordAndRevokeSessions,
   resetPasswordAndRevokeSessions,

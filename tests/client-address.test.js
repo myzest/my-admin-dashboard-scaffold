@@ -65,14 +65,9 @@ test('proxy configuration defaults to no trust and rejects non-IP entries', () =
 test('login and registration quotas isolate trusted clients and reject spoofed peers', async (context) => {
   const reachedDatabase = new Error('Authentication limiter allowed the request');
   const previousDatabase = globalThis.adminStarterDatabase;
+  const previousSecret = process.env.SESSION_SECRET;
+  process.env.SESSION_SECRET = 'rate-limit-test-session-secret-at-least-32-characters';
   globalThis.adminStarterDatabase = {
-    models: {
-      Session: {
-        destroy: async () => {
-          throw reachedDatabase;
-        },
-      },
-    },
     transaction: async () => {
       throw reachedDatabase;
     },
@@ -80,6 +75,8 @@ test('login and registration quotas isolate trusted clients and reject spoofed p
   context.after(() => {
     if (previousDatabase === undefined) delete globalThis.adminStarterDatabase;
     else globalThis.adminStarterDatabase = previousDatabase;
+    if (previousSecret === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = previousSecret;
   });
 
   const headers = new Map();
