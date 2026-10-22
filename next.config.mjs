@@ -9,6 +9,9 @@ const nextConfig = {
   poweredByHeader: false,
   transpilePackages: ['@arco-design/web-react'],
   turbopack: { root: fileURLToPath(new URL('.', import.meta.url)) },
+  async rewrites() {
+    return [{ source: '/health', destination: '/api/health' }];
+  },
   async headers() {
     return [
       {

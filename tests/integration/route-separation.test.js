@@ -114,6 +114,7 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
               '/admin/operation-logs',
               '/admin/categories',
               '/admin/settings',
+              '/admin/api-docs',
               '/admin/profile',
             ],
             ownCookie: adminCookie,

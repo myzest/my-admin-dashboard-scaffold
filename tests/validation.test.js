@@ -28,8 +28,8 @@ async function invokeApi(route, body) {
       this.statusCode = statusCode;
       return this;
     },
-    json(payload) {
-      this.payload = payload;
+    end(body) {
+      this.payload = JSON.parse(body);
       return this;
     },
   };

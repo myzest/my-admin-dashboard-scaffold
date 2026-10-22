@@ -47,6 +47,7 @@ export function createApiHandler(routes, { authenticated = true, role = 'admin' 
     const requestId = randomUUID();
     res.setHeader('X-Request-Id', requestId);
     res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     try {
       const route = routes[req.method];
       if (!Object.hasOwn(routes, req.method) || typeof route !== 'function') {
@@ -58,7 +59,8 @@ export function createApiHandler(routes, { authenticated = true, role = 'admin' 
         ? await readBody(req)
         : undefined;
       const data = await route({ req, res, body, user });
-      res.json({ status: true, data, error: {} });
+      // Next.js json/send can turn even errors into empty 304s. These APIs are never cacheable.
+      res.end(JSON.stringify({ status: true, data, error: {} }));
     } catch (error) {
       const publicError = getPublicError(error);
       if (publicError.status >= 500) {
@@ -73,17 +75,19 @@ export function createApiHandler(routes, { authenticated = true, role = 'admin' 
           }),
         );
       }
-      res.status(publicError.status).json({
-        status: false,
-        data: {},
-        error: {
-          code: publicError.code,
-          message: publicError.message,
-          ...(publicError.fields && Object.keys(publicError.fields).length
-            ? { fields: publicError.fields }
-            : {}),
-        },
-      });
+      res.status(publicError.status).end(
+        JSON.stringify({
+          status: false,
+          data: {},
+          error: {
+            code: publicError.code,
+            message: publicError.message,
+            ...(publicError.fields && Object.keys(publicError.fields).length
+              ? { fields: publicError.fields }
+              : {}),
+          },
+        }),
+      );
     }
   };
 }

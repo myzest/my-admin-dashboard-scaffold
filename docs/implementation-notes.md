@@ -1,5 +1,17 @@
 # 实施记录
 
+## OpenAPI 与存活检查示例（2026-10-22）
+
+- 按首版范围，仅提供公开的 `GET /health`，通过 Next.js rewrite 映射到 API Route。复用统一响应、请求编号及错误处理，返回 `{ status: true, data: { status: 'ok' }, error: {} }`；不依赖数据库、Redis 或 Worker 状态。
+- 用现有 Zod 4 定义响应契约并生成 OpenAPI 3.1 Schema，增加 `npm run openapi:generate` 和标准文档 `docs/openapi.json`；单元测试检查生成文件是否与源文件一致。
+- 增加管理员“接口文档”页面，沿用角色守卫，按需加载本地 Scalar 查看器，可查看请求示例并下载 JSON。文档浏览器测试使用独立临时会话，不占用登录测试的限流额度。
+- 复核修复统一 API 响应的条件请求问题：Next.js 的 `res.json()` 会因 `If-None-Match` 把成功或错误响应改为空体 304。改用原生 `res.end()` 序列化输出，不生成 ETag，保留状态码、JSON 响应和 `no-store`；增加原生 HTTP 回归检查，并同步既有单元测试的响应替身。
+- 本轮没有扩展现有业务 API 的开放范围。第三方业务凭证、权限范围及调用限制等待具体接口需求；示例用法和兼容约定见 [OpenAPI 契约](openapi.md)。
+
+本轮通过生产构建、34 项单元测试、55 项 MySQL 集成测试、9 条 Chromium 流程、ESLint、Prettier 与差异空白检查。验证包括实际 `/health` 响应与方法限制、条件请求保留 200／405／401 及完整 JSON、文档访客／普通用户／管理员权限、在线调试直接调用同源 `/health`、下载 JSON 与契约源一致，以及桌面和 390px 移动端展示。
+
+验证全部使用临时源码副本和新建 MySQL 实例；最近复核的记录、缺陷复现与截图保存在 `.local/openapi-review-cf0ywt7o/`。测试服务和临时数据库已关闭，临时源码及数据库数据已删除，未访问工作区业务数据库。
+
 ## 后台任务基建（2026-10-22）
 
 - 引入 BullMQ 6.4.0 与 ioredis 5.11.1，增加独立 Worker、任务注册表、固定时区的 cron 调度和手动投递／查询／重试命令。Redis 配置延迟读取，普通页面与登录不依赖 Redis。

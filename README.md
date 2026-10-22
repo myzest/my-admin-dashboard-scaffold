@@ -131,6 +131,8 @@ location / {
 
 ## 增加业务模块
 
+OpenAPI 首个示例为公开的 `GET /health` 存活检查。管理员可在“接口文档”查看并下载契约；运行 `npm run openapi:generate` 生成 `docs/openapi.json`。当前只覆盖该示例，使用与扩展方式见 [OpenAPI 契约](docs/openapi.md)。
+
 后台任务使用 BullMQ + Redis，由独立进程 `npm run worker` 执行。首个示例为每小时清理过期会话，支持手动投递、结果查询、失败重试和 Worker 重启恢复。普通页面和登录不需要 Redis；运行 Worker 前需配置 Redis 持久化、`REDIS_URL` 和环境独立的 `JOB_QUEUE_PREFIX`。启动、扩展及验证见 [后台任务与定时调度](docs/background-jobs.md)。
 
 ```text

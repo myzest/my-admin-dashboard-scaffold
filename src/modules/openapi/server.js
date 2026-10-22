@@ -1,0 +1,74 @@
+import { z } from 'zod';
+import { site } from '../../config/site.js';
+
+export const healthResponseSchema = z.strictObject({
+  status: z.literal(true),
+  data: z.strictObject({ status: z.literal('ok') }),
+  error: z.strictObject({}),
+});
+
+export const errorResponseSchema = z.strictObject({
+  status: z.literal(false),
+  data: z.strictObject({}),
+  error: z.strictObject({
+    code: z.string(),
+    message: z.string(),
+    fields: z.record(z.string(), z.string()).optional(),
+  }),
+});
+
+export const openApiDocument = {
+  openapi: '3.1.0',
+  info: {
+    title: `${site.name} API`,
+    version: '1.0.0',
+    description: '开放接口契约示例：公开的应用存活检查。',
+  },
+  servers: [{ url: '/', description: '当前部署地址' }],
+  paths: {
+    '/health': {
+      get: {
+        operationId: 'getHealth',
+        summary: '检查应用存活',
+        description:
+          '无需登录，无请求参数。返回 ok 表示应用能够响应 HTTP 请求，不代表数据库、Redis 或 Worker 已就绪。',
+        security: [],
+        responses: {
+          200: {
+            description: '应用可响应请求',
+            headers: {
+              'X-Request-Id': {
+                description: '本次请求的追踪编号',
+                schema: { type: 'string', format: 'uuid' },
+              },
+            },
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/HealthResponse' },
+                example: { status: true, data: { status: 'ok' }, error: {} },
+              },
+            },
+          },
+          405: {
+            description: '请求方法不受支持，Allow 响应头为 GET',
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } },
+            },
+          },
+          500: {
+            description: '应用内部错误',
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } },
+            },
+          },
+        },
+      },
+    },
+  },
+  components: {
+    schemas: {
+      HealthResponse: z.toJSONSchema(healthResponseSchema, { target: 'draft-2020-12' }),
+      ErrorResponse: z.toJSONSchema(errorResponseSchema, { target: 'draft-2020-12' }),
+    },
+  },
+};
