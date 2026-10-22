@@ -1,6 +1,6 @@
 # Admin Starter
 
-一套轻量后台脚手架：管理员与普通用户共用登录，页面、API 和业务服务分别维护；内置用户管理、账号启停和密码重置、可开关注册、四位小数余额和日志，以及可照着扩展的分类 CRUD 示例。
+一套轻量后台脚手架：管理员与普通用户共用登录，页面、API 和业务服务分别维护；内置用户管理、账号启停和密码重置、可开关注册、四位小数余额、管理员操作日志，以及可照着扩展的分类 CRUD 示例。
 
 技术栈：JavaScript / JSX、Next.js Pages Router、Arco Design React、Lodash、Sequelize。首版验证 MySQL，PostgreSQL / SQLite 留待后续兼容验收。
 
@@ -46,6 +46,8 @@ npm run dev
 
 打开 `http://127.0.0.1:3000/login`，使用配置的管理员登录。
 
+应用与维护命令使用 Next.js 的环境文件解析规则，终端中已有的环境变量优先。普通 `.env*` 中的字面 `$` 必须写成 `\$`，例如 `DB_PASSWORD=example\$literal`；未转义的 `$NAME` 会展开为变量值。`db:*` 和 `admin:reset-password` 默认读取 production 模式的环境文件；若使用 `.env.development*`，相应命令也要设置 `NODE_ENV=development`。只使用 `.env.local` 时，无需指定模式。
+
 | 入口                              | 功能                                                                   |
 | --------------------------------- | ---------------------------------------------------------------------- |
 | `/admin/users`                    | 管理员首页；创建、编辑、搜索、启停普通用户，重置密码、调整余额或硬删除 |
@@ -54,6 +56,7 @@ npm run dev
 | `/user/dashboard`                 | 普通用户首页；查看本人账号资料与余额                                   |
 | `/admin/profile`、`/user/profile` | 分别查看本人账号资料、修改密码                                         |
 | `/admin/balance-logs`             | 查看全部余额日志，支持按用户筛选                                       |
+| `/admin/operation-logs`           | 查看管理员操作和字段变化，支持按动作、对象类型和对象 ID 筛选           |
 | `/user/balance-logs`              | 只查看本人的余额日志                                                   |
 | `/admin/categories`               | 管理员分类 CRUD 示例                                                   |
 
@@ -65,9 +68,11 @@ npm run dev
 
 调账结果未确认时保留原参数和操作编号；关闭弹窗或刷新后，重新打开可继续确认同一笔调整。当前标签页恢复记录不可写入时，不发送新调账。关闭标签页或清除浏览器数据后，应先核对余额日志，再决定是否重新操作。
 
-硬删除普通用户会删除账号、剩余余额、所有余额日志及会话，余额非零也允许删除，界面会二次确认。修改密码需要原密码，成功后所有会话失效并重新登录。
+硬删除普通用户会删除账号、剩余余额、所有余额日志、该用户的关联操作日志及会话，余额非零也允许删除，界面会二次确认。删除事件仅保留操作者、动作和时间，不保留目标用户编号或个人资料。修改密码需要原密码，成功后所有会话失效并重新登录。
 
 已有账号和新账号默认启用。管理员停用普通用户后，该账号无法登录，所有旧会话失效；账号、余额和日志保留，管理员仍可管理。重新启用后需要重新登录，旧会话不会恢复。重置密码不会改变启停状态。
+
+操作日志记录成功的用户创建、编辑、启停、密码重置、删除，以及分类增删改和注册开关修改。操作者来自服务端会话，字段变化按白名单记录；密码重置仅记事件，不保存密码、哈希、Cookie 或原始请求。日志和业务变更使用同一事务，日志失败时业务回滚。余额调整继续使用余额日志，不重复记录；登录、退出、失败尝试和服务器密码恢复不属于此业务日志范围。
 
 ## 密码重置
 
@@ -137,6 +142,7 @@ src/
   modules/users/         共享账号基础；admin / user 各自业务入口
   modules/balance/       admin / user 各自页面、共享日志展示
   modules/settings/      注册开关
+  modules/operation-logs/ 管理员操作日志写入与查询
   modules/categories/    完整 CRUD 示例
   components/            通用展示组件
   config/                两端菜单、登录后的首页与站点配置
@@ -156,6 +162,12 @@ database/migrations/     数据库迁移
 
 API 统一返回 `{ status, data, error }`，错误同时使用对应 HTTP 状态码；分页数据为 `{ items, pagination: { page, pageSize, total } }`。普通函数返回业务数据或抛错；单条查询无结果返回 `null`。
 
+字段错误使用可选的 `error.fields`，例如 `{ username: '用户名已存在' }`，整体错误仍保留 `code` 和 `message`。表单通过 `createFieldRules(schema)` 复用所属模块的 Zod 字段规则，通过 `useFormErrors(error)` 将服务端错误显示到已注册字段；输入保留，修改后重新校验。共享 schema 必须可在浏览器执行，不能依赖数据库、环境密钥或 Node.js 专用 API。
+
+`createFieldRules` 只校验，不改写表单值；需要本地持久化的输入应先规范化，恢复记录时复用同一 schema，避免校验接受的值无法恢复。
+
+新业务需要记录管理员变更时，通过 `modules/operation-logs/server.js` 的 `createOperationLog` 写入，并传入业务事务；在日志模块声明动作和字段白名单。API 只传当前会话的 `user.id`，不接受客户端指定操作者。用户关联记录设置 `userId` 外键，沿用硬删除清理规则。
+
 列表查询校验已定义的分页、搜索参数，并忽略额外查询字段。用户余额日志接口不接受 `userId`，传入时返回 400；查询身份始终来自会话。
 
 详细规范见 [AGENTS.md](AGENTS.md) 和 [CLAUDE.md](CLAUDE.md)，两者保持一致。
@@ -174,7 +186,7 @@ npm test
 cp .env.test.example .env.test.local
 ```
 
-在 `.env.test.local` 中填写测试数据库连接和测试管理员账号密码。`DB_PASSWORD` 必须显式填写，允许留空；`DB_PORT`、`DB_POOL_MAX` 可使用示例默认值。测试配置不读取或回退到 `.env.local`，也不接收额外配置字段；不要把业务配置直接复制过来。
+在 `.env.test.local` 中填写测试数据库连接和测试管理员账号密码。`DB_PASSWORD` 必须显式填写，允许留空；`DB_PORT`、`DB_POOL_MAX` 可使用示例默认值。此独立配置使用 dotenv 原样解析，字面 `$` 直接填写，不写 `\$`。测试配置不读取或回退到 `.env.local`，也不接收额外配置字段；不要把业务配置直接复制过来。
 
 ```bash
 npx playwright install chromium

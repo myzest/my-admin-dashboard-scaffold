@@ -9,7 +9,7 @@ export const config = { api: { bodyParser: false } };
 export default createApiHandler(
   {
     GET: () => getRegistrationSettings(),
-    PUT: ({ body }) => updateRegistrationSettings(body),
+    PUT: ({ body, user }) => updateRegistrationSettings(body, user.id),
   },
   { role: 'admin' },
 );

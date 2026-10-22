@@ -18,8 +18,8 @@ export default createApiHandler(
       }
       return user;
     },
-    PUT: ({ req, body }) => updateUser(userIdSchema.parse(req.query.id), body),
-    DELETE: ({ req }) => deleteUser(userIdSchema.parse(req.query.id)),
+    PUT: ({ req, body, user }) => updateUser(userIdSchema.parse(req.query.id), body, user.id),
+    DELETE: ({ req, user }) => deleteUser(userIdSchema.parse(req.query.id), user.id),
   },
   { role: 'admin' },
 );

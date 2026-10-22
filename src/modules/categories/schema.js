@@ -2,7 +2,11 @@ import { z } from 'zod';
 
 export const categorySchema = z
   .object({
-    name: z.string().trim().min(1, '请输入分类名称').max(64, '分类名称不能超过 64 个字符'),
+    name: z
+      .string({ error: '请输入分类名称' })
+      .trim()
+      .min(1, '请输入分类名称')
+      .max(64, '分类名称不能超过 64 个字符'),
     description: z.string().trim().max(500, '说明不能超过 500 个字符').default(''),
     isEnabled: z.boolean().default(true),
   })

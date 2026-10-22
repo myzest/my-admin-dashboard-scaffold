@@ -27,7 +27,9 @@ assert.ok(
 const initialMigration = '001-initial.js';
 const accountMigration = '002-users-balances-settings.js';
 const statusMigration = '003-user-status.js';
+const auditMigration = '004-operation-logs.js';
 const ownedTables = [
+  'operation_logs',
   'balance_logs',
   'sessions',
   'admin_sessions',
@@ -102,7 +104,7 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
   async function verifyLegacyUpgrade(migrator) {
     assert.deepEqual(
       (await migrator.executed()).map(({ name }) => name),
-      [initialMigration, accountMigration, statusMigration],
+      [initialMigration, accountMigration, statusMigration, auditMigration],
     );
     const [[admin]] = await database.query('SELECT * FROM users WHERE id = 41');
     assert.equal(admin.username, 'legacy_admin');
@@ -128,6 +130,14 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
     );
     assert.equal(indexes.length, 2);
     assert.ok(indexes.every((index) => Number(index.Non_unique) === 0));
+    const operationIndexes = await queryInterface.showIndex('operation_logs');
+    for (const name of [
+      'operation_logs_action_id',
+      'operation_logs_target_id',
+      'operation_logs_operator_id',
+    ]) {
+      assert.ok(operationIndexes.some((index) => index.name === name));
+    }
     await queryInterface.bulkInsert('users', [
       {
         username: 'default_role_user',
@@ -169,11 +179,10 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
           assert.equal(admin.role, 'admin');
           assert.equal(admin.balance, '0.0000');
           assert.equal(admin.isEnabled, true);
-          const user = await createUser({
-            username: 'existing_member',
-            displayName: '已有用户',
-            password,
-          });
+          const user = await createUser(
+            { username: 'existing_member', displayName: '已有用户', password },
+            admin.id,
+          );
           await changeUserBalance(
             user.id,
             {
@@ -184,13 +193,14 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
             },
             admin.id,
           );
-          await updateRegistrationSettings({ allowRegistration: true });
+          await updateRegistrationSettings({ allowRegistration: true }, admin.id);
           await queryInterface.bulkUpdate('users', { is_enabled: false }, { id: user.id });
           assert.deepEqual(await migrator.up(), []);
           assert.deepEqual(await seedAdmin(), { created: false });
           // Simulate completion before Umzug recorded the migration, then replay the actual runner.
           await queryInterface.bulkDelete('sequelize_meta', { name: accountMigration });
           await queryInterface.bulkDelete('sequelize_meta', { name: statusMigration });
+          await queryInterface.bulkDelete('sequelize_meta', { name: auditMigration });
           await migrator.up();
           const retained = await getUserById(user.id);
           assert.equal(retained.role, 'user');
@@ -205,6 +215,10 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
             },
           );
           assert.equal(Number(logs.total), 1);
+          const [[operations]] = await database.query(
+            'SELECT COUNT(*) AS total FROM operation_logs',
+          );
+          assert.equal(Number(operations.total), 2);
           assert.equal(
             (await authenticateUser({ username: admin.username, password })).id,
             admin.id,
@@ -272,6 +286,26 @@ test('real MySQL: fresh setup, legacy upgrade and interrupted DDL recovery', asy
         method: 'addColumn',
         matches: ([table, column]) => table === 'users' && column === 'is_enabled',
         executed: [initialMigration, accountMigration],
+      },
+      {
+        name: 'operation-log table creation',
+        method: 'createTable',
+        matches: ([table]) => table === 'operation_logs',
+        executed: [initialMigration, accountMigration, statusMigration],
+      },
+      {
+        name: 'operation-log first index',
+        method: 'addIndex',
+        matches: ([table, , options]) =>
+          table === 'operation_logs' && options.name === 'operation_logs_action_id',
+        executed: [initialMigration, accountMigration, statusMigration],
+      },
+      {
+        name: 'operation-log final index',
+        method: 'addIndex',
+        matches: ([table, , options]) =>
+          table === 'operation_logs' && options.name === 'operation_logs_operator_id',
+        executed: [initialMigration, accountMigration, statusMigration],
       },
     ];
     for (const { name, method, matches, executed = [initialMigration] } of checkpoints) {

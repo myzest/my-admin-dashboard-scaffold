@@ -5,12 +5,16 @@ import { useAuthRequest } from '@/modules/auth/client';
 import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
+import { createFieldRules } from '@/lib/validation';
+import { registrationSettingsSchema } from './schema';
 import styles from '@/styles/workspace.module.css';
 
 export default function SettingsPage({ user }) {
   const [message, messageHolder] = Message.useMessage();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const form = useFormErrors(saveError);
   const request = useAuthRequest();
   const { data, error, isLoading, mutate } = useSWR('/api/admin/settings/registration');
 
@@ -49,6 +53,7 @@ export default function SettingsPage({ user }) {
           <div className={styles.form}>
             <RequestError error={saveError} />
             <Form
+              form={form}
               key={String(data.allowRegistration)}
               id="registration-settings-form"
               layout="vertical"
@@ -56,7 +61,12 @@ export default function SettingsPage({ user }) {
               onSubmit={saveSettings}
               disabled={isSaving}
             >
-              <Form.Item label="允许自行注册" field="allowRegistration" triggerPropName="checked">
+              <Form.Item
+                label="允许自行注册"
+                field="allowRegistration"
+                triggerPropName="checked"
+                rules={createFieldRules(registrationSettingsSchema.shape.allowRegistration)}
+              >
                 <Switch checkedText="开" uncheckedText="关" aria-label="允许自行注册" />
               </Form.Item>
               <Button type="primary" htmlType="submit" loading={isSaving}>

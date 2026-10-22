@@ -4,6 +4,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { ZodError } from 'zod';
 import { requireUser } from '../modules/auth/server.js';
 import { HttpError } from './errors.js';
+import { getValidationFields } from '../lib/validation.js';
 
 async function readBody(req) {
   if (req.headers['content-type']?.split(';')[0].trim() !== 'application/json') {
@@ -28,7 +29,12 @@ async function readBody(req) {
 function getPublicError(error) {
   if (error instanceof HttpError) return error;
   if (error instanceof ZodError) {
-    return new HttpError(400, 'VALIDATION_ERROR', '请求参数不正确，请检查输入内容');
+    return new HttpError(
+      400,
+      'VALIDATION_ERROR',
+      '请求参数不正确，请检查输入内容',
+      getValidationFields(error),
+    );
   }
   if (error instanceof UniqueConstraintError) {
     return new HttpError(409, 'DUPLICATE_RECORD', '名称已存在，请使用其他名称');
@@ -70,7 +76,13 @@ export function createApiHandler(routes, { authenticated = true, role = 'admin' 
       res.status(publicError.status).json({
         status: false,
         data: {},
-        error: { code: publicError.code, message: publicError.message },
+        error: {
+          code: publicError.code,
+          message: publicError.message,
+          ...(publicError.fields && Object.keys(publicError.fields).length
+            ? { fields: publicError.fields }
+            : {}),
+        },
       });
     }
   };

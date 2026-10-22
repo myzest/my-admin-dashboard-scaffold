@@ -13,13 +13,17 @@ export async function changePasswordAndRevokeSessions(req, res, account, values)
   return {};
 }
 
-export async function resetPasswordAndRevokeSessions(account, values) {
-  await getDatabase().transaction(
-    { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
-    async (transaction) => {
-      const user = await resetAccountPassword(account, values, { transaction });
-      await revokeUserSessions(user.id, { transaction });
-    },
-  );
+export async function resetPasswordAndRevokeSessions(account, values, { transaction } = {}) {
+  async function reset(ownedTransaction) {
+    const user = await resetAccountPassword(account, values, { transaction: ownedTransaction });
+    await revokeUserSessions(user.id, { transaction: ownedTransaction });
+  }
+  if (transaction) await reset(transaction);
+  else {
+    await getDatabase().transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      reset,
+    );
+  }
   return {};
 }

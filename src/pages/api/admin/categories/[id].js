@@ -17,9 +17,9 @@ export default createApiHandler(
       if (!category) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在');
       return category;
     },
-    PUT: ({ req, body }) =>
-      updateCategory(categoryIdSchema.parse(req.query.id), categorySchema.parse(body)),
-    DELETE: ({ req }) => deleteCategory(categoryIdSchema.parse(req.query.id)),
+    PUT: ({ req, body, user }) =>
+      updateCategory(categoryIdSchema.parse(req.query.id), categorySchema.parse(body), user.id),
+    DELETE: ({ req, user }) => deleteCategory(categoryIdSchema.parse(req.query.id), user.id),
   },
   { role: 'admin' },
 );

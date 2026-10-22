@@ -1,0 +1,25 @@
+.filters {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filter {
+  width: 160px;
+}
+
+.change {
+  display: block;
+  max-width: 100%;
+}
+
+@media (max-width: 760px) {
+  .filters {
+    flex-basis: 100%;
+  }
+
+  .filter {
+    width: 100%;
+  }
+}

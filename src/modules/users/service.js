@@ -51,7 +51,9 @@ export async function changeAccountPassword(account, values, { transaction } = {
   });
   if (!user) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在');
   if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
-    throw new HttpError(400, 'INVALID_CURRENT_PASSWORD', '原密码不正确');
+    throw new HttpError(400, 'INVALID_CURRENT_PASSWORD', '原密码不正确', {
+      currentPassword: '原密码不正确',
+    });
   }
   await user.update({ passwordHash: await bcrypt.hash(newPassword, 12) }, { transaction });
   return getPublicUser(user);
@@ -85,7 +87,7 @@ export async function createUserAccount(values, { transaction } = {}) {
     return getPublicUser(user);
   } catch (error) {
     if (error instanceof UniqueConstraintError) {
-      throw new HttpError(409, 'USERNAME_EXISTS', '用户名已存在');
+      throw new HttpError(409, 'USERNAME_EXISTS', '用户名已存在', { username: '用户名已存在' });
     }
     throw error;
   }

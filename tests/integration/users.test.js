@@ -7,6 +7,8 @@ import { getDatabase } from '../../src/server/database.js';
 import { getBalanceLogModel } from '../../src/modules/users/models.js';
 import { changeUserBalance } from '../../src/modules/users/admin/server.js';
 import { MAX_BALANCE } from '../../src/modules/users/money.js';
+import { getOperationLogModel } from '../../src/modules/operation-logs/model.js';
+import { updateRegistrationSettings } from '../../src/modules/settings/admin/server.js';
 import { baseUrl, call } from '../helpers/api.js';
 
 assert.ok(process.env.DB_NAME?.endsWith('_test'), '集成测试必须使用名称以 _test 结尾的独立数据库');
@@ -94,6 +96,27 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
     assert.equal(typeof previousRegistration, 'boolean');
     assert.equal((await setRegistration(false)).response.status, 200);
 
+    await context.test(
+      'registration changes roll back when operation logging fails',
+      async (subtest) => {
+        const Log = getOperationLogModel();
+        const count = await Log.count({ where: { action: 'REGISTRATION_UPDATED' } });
+        const fault = subtest.mock.method(Log, 'create', async () => {
+          throw new Error('Injected operation log failure');
+        });
+        try {
+          await assert.rejects(
+            updateRegistrationSettings({ allowRegistration: true }, admin.id),
+            /Injected operation log/,
+          );
+        } finally {
+          fault.mock.restore();
+        }
+        assert.deepEqual((await call('/api/auth/registration')).data, { allowRegistration: false });
+        assert.equal(await Log.count({ where: { action: 'REGISTRATION_UPDATED' } }), count);
+      },
+    );
+
     await context.test('closed registration is enforced by the API', async () => {
       assert.deepEqual((await call('/api/auth/registration')).data, { allowRegistration: false });
       const result = await call('/api/auth/register', {
@@ -170,6 +193,11 @@ test('real MySQL: users, registration, exact balances, isolation and hard deleti
       'enabled registration creates an ordinary account without logging it in',
       async () => {
         assert.equal((await setRegistration(true)).response.status, 200);
+        const log = await getOperationLogModel().findOne({
+          where: { action: 'REGISTRATION_UPDATED', operatorId: admin.id },
+          order: [['id', 'DESC']],
+        });
+        assert.deepEqual(log.changes, { allowRegistration: { before: false, after: true } });
         assert.deepEqual((await call('/api/auth/registration')).data, { allowRegistration: true });
         for (const extra of [{ role: 'admin' }, { balance: '1.0000' }]) {
           const rejected = await call('/api/auth/register', {

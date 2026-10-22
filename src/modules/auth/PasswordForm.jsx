@@ -3,6 +3,9 @@ import { useRouter } from 'next/router';
 import { Button, Form, Input } from '@arco-design/web-react';
 import { useSWRConfig } from 'swr';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
+import { changePasswordSchema } from '@/modules/users/client';
+import { createFieldRules } from '@/lib/validation';
 import NewPasswordField from './NewPasswordField';
 import useAuthRequest from './useAuthRequest';
 import styles from '@/styles/workspace.module.css';
@@ -13,6 +16,7 @@ export default function PasswordForm({ endpoint }) {
   const { mutate } = useSWRConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const form = useFormErrors(error);
 
   async function updatePassword(values) {
     setIsSubmitting(true);
@@ -37,6 +41,7 @@ export default function PasswordForm({ endpoint }) {
       <div className={styles.form}>
         <RequestError error={error} />
         <Form
+          form={form}
           id="password-form"
           layout="vertical"
           onSubmit={updatePassword}
@@ -45,7 +50,7 @@ export default function PasswordForm({ endpoint }) {
           <Form.Item
             label="当前密码"
             field="currentPassword"
-            rules={[{ required: true, message: '请输入当前密码' }]}
+            rules={createFieldRules(changePasswordSchema.shape.currentPassword)}
           >
             <Input.Password
               placeholder="请输入当前密码"

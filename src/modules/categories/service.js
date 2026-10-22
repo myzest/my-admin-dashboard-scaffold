@@ -1,7 +1,18 @@
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
+import pick from 'lodash/pick.js';
 import { HttpError } from '../../server/errors.js';
 import { getDatabase } from '../../server/database.js';
 import { getCategoryModel } from './model.js';
+import { createOperationLog } from '../operation-logs/server.js';
+
+function rethrowCategoryError(error) {
+  if (error instanceof UniqueConstraintError) {
+    throw new HttpError(409, 'DUPLICATE_RECORD', '名称已存在，请使用其他名称', {
+      name: '名称已存在，请使用其他名称',
+    });
+  }
+  throw error;
+}
 
 export async function listCategories({ page, pageSize, search }) {
   // Escape SQL LIKE wildcards so the search box performs a literal substring match.
@@ -20,25 +31,55 @@ export async function getCategoryById(id) {
   return category ? category.toJSON() : null;
 }
 
-export async function createCategory(values) {
-  const category = await getCategoryModel().create(values);
-  return category.toJSON();
+export function createCategory(values, operatorId) {
+  return getDatabase().transaction(async (transaction) => {
+    let category;
+    try {
+      category = await getCategoryModel().create(values, { transaction });
+    } catch (error) {
+      rethrowCategoryError(error);
+    }
+    await createOperationLog(
+      { operatorId, action: 'CATEGORY_CREATED', targetId: category.id, after: category },
+      { transaction },
+    );
+    return category.toJSON();
+  });
 }
 
-export async function updateCategory(id, values) {
+export async function updateCategory(id, values, operatorId) {
   return getDatabase().transaction(async (transaction) => {
     const category = await getCategoryModel().findByPk(id, {
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
     if (!category) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在');
-    await category.update(values, { transaction });
+    const before = pick(category, ['name', 'description', 'isEnabled']);
+    try {
+      await category.update(values, { transaction });
+    } catch (error) {
+      rethrowCategoryError(error);
+    }
+    await createOperationLog(
+      { operatorId, action: 'CATEGORY_UPDATED', targetId: category.id, before, after: category },
+      { transaction },
+    );
     return category.toJSON();
   });
 }
 
-export async function deleteCategory(id) {
-  const deleted = await getCategoryModel().destroy({ where: { id } });
-  if (!deleted) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在');
-  return {};
+export function deleteCategory(id, operatorId) {
+  return getDatabase().transaction(async (transaction) => {
+    const category = await getCategoryModel().findByPk(id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!category) throw new HttpError(404, 'CATEGORY_NOT_FOUND', '分类不存在');
+    await category.destroy({ transaction });
+    await createOperationLog(
+      { operatorId, action: 'CATEGORY_DELETED', targetId: id, before: category },
+      { transaction },
+    );
+    return {};
+  });
 }

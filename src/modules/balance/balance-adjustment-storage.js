@@ -1,4 +1,12 @@
-import { validate as isUuid } from 'uuid';
+import { z } from 'zod';
+import { balanceChangeSchema } from '../users/client.js';
+
+const pendingAdjustmentSchema = z
+  .object({
+    operationId: balanceChangeSchema.shape.operationId,
+    payload: balanceChangeSchema.omit({ operationId: true }),
+  })
+  .strict();
 
 function getStorageKey(operatorId, userId) {
   return `pending-balance-adjustment:${operatorId}:${userId}`;
@@ -14,23 +22,7 @@ export function getPendingBalanceAdjustment(operatorId, userId) {
   if (value === null) return null;
 
   try {
-    const adjustment = JSON.parse(value);
-    const payload = adjustment?.payload;
-    if (
-      !isUuid(adjustment?.operationId) ||
-      !['increase', 'decrease'].includes(payload?.direction) ||
-      typeof payload?.amount !== 'string' ||
-      !/^\d{1,16}(\.\d{1,4})?$/.test(payload.amount) ||
-      !/[1-9]/.test(payload.amount) ||
-      typeof payload?.reason !== 'string' ||
-      !payload.reason.trim() ||
-      payload.reason.length > 500 ||
-      Object.keys(adjustment).length !== 2 ||
-      Object.keys(payload).length !== 3
-    ) {
-      throw new Error('Invalid pending balance adjustment');
-    }
-    return adjustment;
+    return pendingAdjustmentSchema.parse(JSON.parse(value));
   } catch {
     throw new Error('余额调整的恢复记录无法识别，请保留浏览器数据并联系管理员核对。');
   }

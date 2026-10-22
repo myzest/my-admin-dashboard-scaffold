@@ -11,8 +11,8 @@ export const config = { api: { bodyParser: false } };
 export default createApiHandler(
   {
     GET: ({ req }) => listCategories(categoryQuerySchema.parse(req.query)),
-    POST: async ({ body, res }) => {
-      const category = await createCategory(categorySchema.parse(body));
+    POST: async ({ body, res, user }) => {
+      const category = await createCategory(categorySchema.parse(body), user.id);
       res.statusCode = 201;
       return category;
     },

@@ -5,7 +5,7 @@ export const config = { api: { bodyParser: false } };
 
 export default createApiHandler(
   {
-    POST: ({ req, body }) => resetUserPassword(req.query.id, body),
+    POST: ({ req, body, user }) => resetUserPassword(req.query.id, body, user.id),
   },
   { role: 'admin' },
 );

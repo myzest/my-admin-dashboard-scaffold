@@ -31,7 +31,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
   let currentPassword = password;
 
   async function createMember(label) {
-    const user = await createUser({ username: `controls_${label}_${suffix}`, password });
+    const user = await createUser({ username: `controls_${label}_${suffix}`, password }, admin.id);
     createdIds.add(user.id);
     return user;
   }
@@ -213,9 +213,9 @@ test('real MySQL: account status, password resets and atomic session revocation'
     );
 
     await context.test('resetting a disabled account does not enable it', async () => {
-      await updateUserStatus(member.id, { isEnabled: false });
+      await updateUserStatus(member.id, { isEnabled: false }, admin.id);
       const newPassword = `Disabled-${randomUUID()}`;
-      await resetUserPassword(member.id, { newPassword });
+      await resetUserPassword(member.id, { newPassword }, admin.id);
       assert.equal((await getUserById(member.id)).isEnabled, false);
       await assert.rejects(
         authenticateUser({ username: member.username, password: currentPassword }),
@@ -226,7 +226,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
       await assert.rejects(authenticateUser({ username: member.username, password: newPassword }), {
         code: 'ACCOUNT_DISABLED',
       });
-      await updateUserStatus(member.id, { isEnabled: true });
+      await updateUserStatus(member.id, { isEnabled: true }, admin.id);
       currentPassword = newPassword;
     });
 
@@ -243,11 +243,11 @@ test('real MySQL: account status, password resets and atomic session revocation'
         });
         try {
           await assert.rejects(
-            updateUserStatus(member.id, { isEnabled: false }),
+            updateUserStatus(member.id, { isEnabled: false }, admin.id),
             /Injected session/,
           );
           await assert.rejects(
-            resetUserPassword(member.id, { newPassword: `Rollback-${randomUUID()}` }),
+            resetUserPassword(member.id, { newPassword: `Rollback-${randomUUID()}` }, admin.id),
             /Injected session/,
           );
         } finally {
@@ -277,7 +277,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
           username: racing.username,
           password,
         }),
-        updateUserStatus(racing.id, { isEnabled: false }),
+        updateUserStatus(racing.id, { isEnabled: false }, admin.id),
       ]);
       assert.equal(results[1].status, 'fulfilled');
       if (results[0].status === 'rejected') {

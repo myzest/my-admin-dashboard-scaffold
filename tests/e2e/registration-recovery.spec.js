@@ -37,7 +37,7 @@ test('a rejected registration keeps the entered account fields', async ({ page, 
     await guestPage.getByLabel('密码', { exact: true }).fill(password);
     await guestPage.getByRole('button', { name: '创建账号', exact: true }).click();
     await expect(
-      guestPage.getByRole('region', { name: '创建账号', exact: true }).getByRole('alert'),
+      guestPage.getByRole('region', { name: '创建账号', exact: true }).locator('.arco-alert'),
     ).toContainText('用户名已存在');
     // Allow the failure handler's settings refresh to settle before checking retained form values.
     await guestPage.waitForLoadState('networkidle');

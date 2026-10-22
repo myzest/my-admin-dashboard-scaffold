@@ -67,7 +67,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(
       dialog.getByText('金额最多支持 16 位整数和 4 位小数', { exact: true }),
     ).toBeVisible();
-    await dialog.getByLabel('金额', { exact: true }).fill('1.2345');
+    await dialog.getByLabel('金额', { exact: true }).fill(' 1.2345 ');
     const balanceRoute = `**/api/admin/users/${userId}/balance`;
     const balanceRequests = [];
     let firstBalanceStatus;
@@ -103,6 +103,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(retryAdjustment).toBeEnabled();
     await expect(dialog.getByLabel('金额', { exact: true })).toBeDisabled();
     await expect.poll(() => firstBalanceStatus).toBe(200);
+    expect(balanceRequests[0].amount).toBe('1.2345');
     await expect(dialog.getByRole('alert').filter({ hasText: '网络连接失败' })).toBeVisible();
     await dialog.getByRole('button', { name: '取消', exact: true }).click();
     await row.getByRole('button', { name: '调整余额', exact: true }).click();
@@ -299,7 +300,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     await passwordRegion.getByLabel('当前密码', { exact: true }).fill('incorrect-password');
     await passwordRegion.getByLabel('新密码', { exact: true }).fill(newPassword);
     await passwordRegion.getByRole('button', { name: '修改密码', exact: true }).click();
-    await expect(passwordRegion.getByRole('alert')).toContainText('原密码不正确');
+    await expect(passwordRegion.locator('.arco-alert')).toContainText('原密码不正确');
     await expect(memberPage).toHaveURL('/user/profile');
     await passwordRegion.getByLabel('当前密码', { exact: true }).fill(accountPassword);
     await passwordRegion.getByRole('button', { name: '修改密码', exact: true }).click();

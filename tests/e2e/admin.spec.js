@@ -44,12 +44,13 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     await expect(dialog).toBeHidden();
     let row = page.getByRole('row').filter({ hasText: name });
     await expect(row).toBeVisible();
-    await findCreatedCategory(name);
+    const createdCategory = await findCreatedCategory(name);
+    expect(createdCategory).toBeDefined();
 
     await page.getByRole('button', { name: '新增分类' }).click();
     await dialog.getByLabel('分类名称', { exact: true }).fill(name);
     await dialog.getByRole('button', { name: '创建分类' }).click();
-    await expect(dialog.getByRole('alert')).toContainText('名称已存在');
+    await expect(dialog.locator('.arco-alert')).toContainText('名称已存在');
     await dialog.getByRole('button', { name: '取消', exact: true }).click();
 
     await row.getByRole('button', { name: '编辑' }).click();
@@ -113,6 +114,63 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
       'aria-current',
       'true',
     );
+
+    await page.goto('/admin/operation-logs');
+    await expect(page.getByRole('heading', { name: '操作日志', exact: true })).toBeVisible();
+    const logsRegion = page.getByRole('region', { name: '操作日志列表' });
+    await logsRegion.getByRole('combobox', { name: '按对象类型筛选' }).click();
+    await page.getByRole('option', { name: '分类', exact: true }).click();
+    await logsRegion.getByLabel('按对象 ID 筛选').fill(String(createdCategory.id));
+    await logsRegion.getByRole('button', { name: '查询', exact: true }).click();
+    const categoryLogs = logsRegion
+      .getByRole('row')
+      .filter({ hasText: `分类 #${createdCategory.id}` });
+    await expect(categoryLogs).toHaveCount(3);
+    const createdLog = categoryLogs.filter({ hasText: '创建分类' });
+    await expect(createdLog).toContainText(process.env.ADMIN_USERNAME);
+    await expect(createdLog).toContainText(`分类名称：— → ${name}`);
+    const updatedLog = categoryLogs.filter({ hasText: '编辑分类' });
+    await expect(updatedLog).toContainText(
+      '分类说明：发布产品更新与使用说明。 → 已更新的分类说明。',
+    );
+    await expect(updatedLog).toContainText('启用状态：是 → 否');
+    await expect(categoryLogs.filter({ hasText: '删除分类' })).toContainText(
+      `分类名称：${name} → —`,
+    );
+    await page.screenshot({ path: '.local/screenshots/operation-logs.png', fullPage: true });
+
+    await logsRegion.getByRole('combobox', { name: '按操作动作筛选' }).click();
+    await page.getByRole('option', { name: '编辑分类', exact: true }).click();
+    await logsRegion.getByRole('button', { name: '查询', exact: true }).click();
+    await expect(categoryLogs).toHaveCount(1);
+    await expect(updatedLog).toBeVisible();
+
+    await logsRegion.getByLabel('按对象 ID 筛选').fill('2147483647');
+    await logsRegion.getByRole('button', { name: '查询', exact: true }).click();
+    await expect(logsRegion.getByText('没有符合条件的操作日志。')).toBeVisible();
+    await logsRegion.getByLabel('按对象 ID 筛选').fill(String(createdCategory.id));
+    await logsRegion.getByRole('button', { name: '查询', exact: true }).click();
+    await expect(updatedLog).toBeVisible();
+
+    await page.route('**/api/admin/operation-logs?*', (route) =>
+      route.fulfill({
+        status: 503,
+        json: {
+          status: false,
+          data: {},
+          error: { code: 'TEMPORARY_ERROR', message: '服务暂时不可用，请稍后重试' },
+        },
+      }),
+    );
+    await logsRegion.getByRole('button', { name: '刷新', exact: true }).click();
+    await expect(logsRegion.locator('.arco-alert')).toContainText('服务暂时不可用');
+    await expect(updatedLog).toBeVisible();
+    await page.unroute('**/api/admin/operation-logs?*');
+    await logsRegion.getByRole('button', { name: '重试', exact: true }).click();
+    await expect(logsRegion.locator('.arco-alert')).toBeHidden();
+    await expect(updatedLog).toBeVisible();
+    await logsRegion.getByRole('button', { name: '重置', exact: true }).click();
+    await expect(logsRegion.getByLabel('按对象 ID 筛选')).toHaveValue('');
 
     for (const id of ids) {
       const response = await page.request.delete(`/api/admin/categories/${id}`, { data: {} });

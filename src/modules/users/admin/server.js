@@ -3,6 +3,7 @@ export {
   getAdminProfile,
   changeAdminPassword,
   listUsers,
+  createUser,
   updateUser,
   deleteUser,
   updateUserStatus,
@@ -10,6 +11,5 @@ export {
   resetAdminPassword,
   seedAdmin,
 } from './service.js';
-export { createUserAccount as createUser } from '../service.js';
 export { changeUserBalance, listBalanceLogs } from './balance-service.js';
 export { userIdSchema } from '../schema.js';

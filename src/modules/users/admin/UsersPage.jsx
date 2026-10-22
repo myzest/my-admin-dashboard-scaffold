@@ -233,7 +233,7 @@ export default function UsersPage({ user }) {
       >
         <p className={styles.description}>
           确认删除“{deletingUser?.username}”吗？账号、剩余余额（{deletingUser?.balance}
-          ）、全部余额日志和登录会话将一并永久删除，无法恢复。
+          ）、全部余额日志、关联操作日志和登录会话将一并永久删除，无法恢复。
         </p>
         <RequestError error={mutationError} />
       </Modal>

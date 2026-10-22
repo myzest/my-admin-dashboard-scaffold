@@ -7,23 +7,27 @@ import useSWR from 'swr';
 import { request } from '@/lib/request';
 import { getHomePath } from '@/config/access';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
+import { createFieldRules } from '@/lib/validation';
+import { loginSchema } from './schema';
 import AuthPanel from './AuthPanel';
 import styles from './AuthPanel.module.css';
 
 export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
+  const form = useFormErrors(error);
   const router = useRouter();
   const { data: registration, error: registrationError, mutate } = useSWR('/api/auth/registration');
 
   async function login(values) {
-    setError('');
+    setError(null);
     setIsSubmitting(true);
     try {
       const result = await request('/api/auth/login', { method: 'POST', body: values });
       await router.replace(getHomePath(result.user));
     } catch (requestError) {
-      setError(requestError.message);
+      setError(requestError);
     } finally {
       setIsSubmitting(false);
     }
@@ -37,12 +41,21 @@ export default function LoginForm() {
       {router.query.passwordChanged === '1' ? (
         <Alert type="success" content="密码已修改，请重新登录。" className={styles.error} />
       ) : null}
-      {error ? <Alert type="error" content={error} className={styles.error} role="alert" /> : null}
-      <Form id="login-form" layout="vertical" size="large" onSubmit={login} disabled={isSubmitting}>
+      {error ? (
+        <Alert type="error" content={error.message} role="alert" className={styles.error} />
+      ) : null}
+      <Form
+        form={form}
+        id="login-form"
+        layout="vertical"
+        size="large"
+        onSubmit={login}
+        disabled={isSubmitting}
+      >
         <Form.Item
           label="账号"
           field="username"
-          rules={[{ required: true, message: '请输入账号' }]}
+          rules={createFieldRules(loginSchema.shape.username)}
         >
           <Input
             prefix={<IconUser />}
@@ -54,7 +67,7 @@ export default function LoginForm() {
         <Form.Item
           label="密码"
           field="password"
-          rules={[{ required: true, message: '请输入密码' }]}
+          rules={createFieldRules(loginSchema.shape.password)}
         >
           <Input.Password
             prefix={<IconLock />}

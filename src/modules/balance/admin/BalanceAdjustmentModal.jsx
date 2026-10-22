@@ -4,6 +4,9 @@ import { useSWRConfig } from 'swr';
 import { v4 as createOperationId } from 'uuid';
 import { useAuthRequest } from '@/modules/auth/client';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
+import { balanceChangeSchema } from '@/modules/users/client';
+import { createFieldRules } from '@/lib/validation';
 import styles from '@/styles/workspace.module.css';
 import {
   createPendingBalanceAdjustment,
@@ -26,6 +29,7 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const form = useFormErrors(error);
   const request = useAuthRequest();
   const { mutate } = useSWRConfig();
   const pendingAdjustment = storedAdjustment.pending;
@@ -39,7 +43,7 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
     if (isSubmitting || storedAdjustment.error) return;
     const adjustment = pendingAdjustment || {
       operationId: createOperationId(),
-      payload: { ...values, reason: values.reason.trim() },
+      payload: { ...values, amount: values.amount.trim(), reason: values.reason.trim() },
     };
     setError(null);
     try {
@@ -124,6 +128,7 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
         />
       ) : null}
       <Form
+        form={form}
         key={storedAdjustment.error ? 'storage-error' : 'ready'}
         id={formId}
         layout="vertical"
@@ -133,7 +138,11 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
         onSubmit={adjustBalance}
         disabled={isSubmitting || Boolean(pendingAdjustment) || Boolean(storedAdjustment.error)}
       >
-        <Form.Item label="调整方向" field="direction" rules={[{ required: true }]}>
+        <Form.Item
+          label="调整方向"
+          field="direction"
+          rules={createFieldRules(balanceChangeSchema.shape.direction)}
+        >
           <Select
             options={[
               { label: '增加', value: 'increase' },
@@ -145,30 +154,14 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
           label="金额"
           field="amount"
           extra="输入大于 0 的金额，最多支持四位小数。"
-          rules={[
-            { required: true, message: '请输入金额' },
-            {
-              match: /^\d{1,16}(\.\d{1,4})?$/,
-              message: '金额最多支持 16 位整数和 4 位小数',
-            },
-            {
-              validator: (value, callback) =>
-                callback(value && !/[1-9]/.test(value) ? '金额必须大于 0' : undefined),
-            },
-          ]}
+          rules={createFieldRules(balanceChangeSchema.shape.amount)}
         >
           <Input inputMode="decimal" placeholder="例如：10.0000" autoComplete="off" />
         </Form.Item>
         <Form.Item
           label="原因"
           field="reason"
-          rules={[
-            { required: true, message: '请填写调整原因' },
-            {
-              validator: (value, callback) =>
-                callback(value?.trim() ? undefined : '请填写调整原因'),
-            },
-          ]}
+          rules={createFieldRules(balanceChangeSchema.shape.reason)}
         >
           <Input.TextArea
             placeholder="说明本次余额调整的原因"

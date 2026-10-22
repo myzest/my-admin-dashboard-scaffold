@@ -5,6 +5,7 @@ import { Alert, Button, Form, Spin } from '@arco-design/web-react';
 import useSWR from 'swr';
 import { request } from '@/lib/request';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
 import AccountFields from './AccountFields';
 import AuthPanel from './AuthPanel';
 import styles from './AuthPanel.module.css';
@@ -13,6 +14,7 @@ export default function RegisterForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const form = useFormErrors(error);
   const { data, error: loadError, isLoading, mutate } = useSWR('/api/auth/registration');
 
   async function register(values) {
@@ -40,6 +42,7 @@ export default function RegisterForm() {
         <>
           <RequestError error={error} />
           <Form
+            form={form}
             id="register-form"
             layout="vertical"
             size="large"

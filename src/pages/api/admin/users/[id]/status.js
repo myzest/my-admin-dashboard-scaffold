@@ -5,7 +5,7 @@ export const config = { api: { bodyParser: false } };
 
 export default createApiHandler(
   {
-    PUT: ({ req, body }) => updateUserStatus(req.query.id, body),
+    PUT: ({ req, body, user }) => updateUserStatus(req.query.id, body, user.id),
   },
   { role: 'admin' },
 );

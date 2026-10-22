@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import pick from 'lodash/pick.js';
 import { Op, Transaction, UniqueConstraintError } from 'sequelize';
 import { getDatabase } from '../../../server/database.js';
 import { HttpError } from '../../../server/errors.js';
@@ -9,7 +10,8 @@ import {
   loginSchema,
 } from '../../auth/server.js';
 import { getUserModel } from '../models.js';
-import { getPublicUser } from '../service.js';
+import { createUserAccount, getPublicUser } from '../service.js';
+import { createOperationLog } from '../../operation-logs/server.js';
 import {
   initialAdminSchema,
   updateUserSchema,
@@ -56,7 +58,18 @@ export async function listUsers(query) {
   return { items: rows.map(getPublicUser), pagination: { page, pageSize, total: count } };
 }
 
-export async function updateUser(id, values) {
+export function createUser(values, operatorId) {
+  return getDatabase().transaction(async (transaction) => {
+    const user = await createUserAccount(values, { transaction });
+    await createOperationLog(
+      { operatorId, action: 'USER_CREATED', targetId: user.id, after: user },
+      { transaction },
+    );
+    return user;
+  });
+}
+
+export async function updateUser(id, values, operatorId) {
   const { username, displayName } = updateUserSchema.parse(values);
   try {
     return await getDatabase().transaction(async (transaction) => {
@@ -66,18 +79,23 @@ export async function updateUser(id, values) {
         lock: transaction.LOCK.UPDATE,
       });
       if (!user) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在');
+      const before = pick(user, ['username', 'displayName']);
       await user.update({ username, displayName: displayName || username }, { transaction });
+      await createOperationLog(
+        { operatorId, action: 'USER_UPDATED', targetId: user.id, before, after: user },
+        { transaction },
+      );
       return getPublicUser(user);
     });
   } catch (error) {
     if (error instanceof UniqueConstraintError) {
-      throw new HttpError(409, 'USERNAME_EXISTS', '用户名已存在');
+      throw new HttpError(409, 'USERNAME_EXISTS', '用户名已存在', { username: '用户名已存在' });
     }
     throw error;
   }
 }
 
-export async function deleteUser(id) {
+export async function deleteUser(id, operatorId) {
   return getDatabase().transaction(async (transaction) => {
     const user = await getUserModel().findOne({
       where: { id, role: 'user' },
@@ -85,13 +103,14 @@ export async function deleteUser(id) {
       lock: transaction.LOCK.UPDATE,
     });
     if (!user) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在');
-    // Foreign keys also remove this user's sessions and balance logs, including a nonzero balance.
+    // Cascades remove sessions, balance logs and identifying operation logs.
     await user.destroy({ transaction });
+    await createOperationLog({ operatorId, action: 'USER_DELETED' }, { transaction });
     return {};
   });
 }
 
-export async function updateUserStatus(userId, values) {
+export async function updateUserStatus(userId, values, operatorId) {
   const id = userIdSchema.parse(userId);
   const { isEnabled } = userStatusSchema.parse(values);
   return getDatabase().transaction(
@@ -103,15 +122,37 @@ export async function updateUserStatus(userId, values) {
         lock: transaction.LOCK.UPDATE,
       });
       if (!user) throw new HttpError(404, 'USER_NOT_FOUND', '用户不存在');
+      const before = { isEnabled: user.isEnabled };
       await user.update({ isEnabled }, { transaction });
       if (!isEnabled) await revokeUserSessions(user.id, { transaction });
+      await createOperationLog(
+        {
+          operatorId,
+          action: isEnabled ? 'USER_ENABLED' : 'USER_DISABLED',
+          targetId: user.id,
+          before,
+          after: user,
+        },
+        { transaction },
+      );
       return getPublicUser(user);
     },
   );
 }
 
-export function resetUserPassword(userId, values) {
-  return resetPasswordAndRevokeSessions({ id: userIdSchema.parse(userId), role: 'user' }, values);
+export function resetUserPassword(userId, values, operatorId) {
+  const id = userIdSchema.parse(userId);
+  return getDatabase().transaction(
+    { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+    async (transaction) => {
+      await resetPasswordAndRevokeSessions({ id, role: 'user' }, values, { transaction });
+      await createOperationLog(
+        { operatorId, action: 'USER_PASSWORD_RESET', targetId: id },
+        { transaction },
+      );
+      return {};
+    },
+  );
 }
 
 export function resetAdminPassword(username, values) {

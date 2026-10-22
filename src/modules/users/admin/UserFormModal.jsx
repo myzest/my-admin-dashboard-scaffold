@@ -3,10 +3,12 @@ import { Button, Form, Modal, Space } from '@arco-design/web-react';
 import pick from 'lodash/pick';
 import { AccountFields } from '@/modules/auth/client';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
 import styles from '@/styles/workspace.module.css';
 
 export default function UserFormModal({ user, isSaving, error, onSubmit, onCancel }) {
   const formId = useId();
+  const form = useFormErrors(error);
 
   return (
     <Modal
@@ -21,6 +23,7 @@ export default function UserFormModal({ user, isSaving, error, onSubmit, onCance
     >
       <RequestError error={error} />
       <Form
+        form={form}
         id={formId}
         layout="vertical"
         initialValues={

@@ -1,11 +1,12 @@
 import get from 'lodash/get.js';
 
 export class ApiError extends Error {
-  constructor(message, status, code) {
+  constructor(message, status, code, fields) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.fields = fields;
   }
 }
 
@@ -38,6 +39,7 @@ export async function request(url, { body, headers, ...options } = {}) {
       get(payload, 'error.message', '请求失败，请稍后重试'),
       response.status,
       get(payload, 'error.code', 'REQUEST_FAILED'),
+      get(payload, 'error.fields'),
     );
   }
   if (!Object.hasOwn(payload, 'data')) {

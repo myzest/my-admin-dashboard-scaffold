@@ -2,12 +2,14 @@ import { useId, useState } from 'react';
 import { Button, Form, Modal, Space } from '@arco-design/web-react';
 import { NewPasswordField, useAuthRequest } from '@/modules/auth/client';
 import RequestError from '@/components/RequestError';
+import useFormErrors from '@/components/useFormErrors';
 import styles from '@/styles/workspace.module.css';
 
 export default function ResetPasswordModal({ user, onCancel, onSuccess }) {
   const formId = useId();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const form = useFormErrors(error);
   const request = useAuthRequest();
 
   async function resetPassword(values) {
@@ -39,7 +41,13 @@ export default function ResetPasswordModal({ user, onCancel, onSuccess }) {
         为“{user.username}”设置新密码。重置后，该用户所有设备上的登录会话都会失效。
       </p>
       <RequestError error={error} />
-      <Form id={formId} layout="vertical" onSubmit={resetPassword} disabled={isSubmitting}>
+      <Form
+        form={form}
+        id={formId}
+        layout="vertical"
+        onSubmit={resetPassword}
+        disabled={isSubmitting}
+      >
         <NewPasswordField field="newPassword" label="新密码" />
         <div className={styles.formActions}>
           <Space>

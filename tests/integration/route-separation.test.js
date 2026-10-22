@@ -47,9 +47,9 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
       role: 'admin',
     });
     createdIds.push(admin.id);
-    const member = await createUser({ username: `split_member_${suffix}`, password });
+    const member = await createUser({ username: `split_member_${suffix}`, password }, admin.id);
     createdIds.push(member.id);
-    const other = await createUser({ username: `split_other_${suffix}`, password });
+    const other = await createUser({ username: `split_other_${suffix}`, password }, admin.id);
     createdIds.push(other.id);
     const adminCookie = await createSession(admin.id);
     const memberCookie = await createSession(member.id);
@@ -69,6 +69,7 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
           [`/api/admin/users/${member.id}/status`, 'PUT'],
           [`/api/admin/users/${member.id}/password`, 'POST'],
           ['/api/admin/balance-logs', 'GET'],
+          ['/api/admin/operation-logs', 'GET'],
           ['/api/admin/categories', 'GET'],
           ['/api/admin/categories', 'POST'],
           ['/api/admin/categories/1', 'GET'],
@@ -110,6 +111,7 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
             pages: [
               '/admin/users',
               '/admin/balance-logs',
+              '/admin/operation-logs',
               '/admin/categories',
               '/admin/settings',
               '/admin/profile',
