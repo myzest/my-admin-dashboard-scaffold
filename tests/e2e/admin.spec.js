@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
+import { expectListRefreshRecovery } from '../helpers/refresh.js';
 
 test('administrator completes CRUD, error recovery, pagination and logout', async ({ page }) => {
   const errors = [];
@@ -67,25 +68,6 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     await page.getByRole('button', { name: '查询', exact: true }).click();
     await expect(row).toBeVisible();
 
-    await page.route('**/api/admin/categories?*', (route) =>
-      route.fulfill({
-        status: 503,
-        json: {
-          status: false,
-          data: {},
-          error: { code: 'TEMPORARY_ERROR', message: '服务暂时不可用，请稍后重试' },
-        },
-      }),
-    );
-    await page.getByRole('button', { name: '刷新', exact: true }).click();
-    await expect(page.getByRole('region', { name: '分类列表' }).getByRole('alert')).toContainText(
-      '服务暂时不可用',
-    );
-    await page.unroute('**/api/admin/categories?*');
-    await page.getByRole('button', { name: '重试', exact: true }).click();
-    await expect(page.getByRole('region', { name: '分类列表' }).getByRole('alert')).toBeHidden();
-    await expect(row).toBeVisible();
-
     for (let index = 0; index < 10; index++) {
       const response = await page.request.post('/api/admin/categories', {
         data: { name: `服务公告-${name}-${index}`, description: '分类分页验证' },
@@ -97,6 +79,11 @@ test('administrator completes CRUD, error recovery, pagination and logout', asyn
     await page.getByLabel('下一页', { exact: true }).click();
     row = page.getByRole('row').filter({ hasText: name }).filter({ hasText: '已更新的分类说明。' });
     await expect(row).toBeVisible();
+    await expect(page.getByLabel('第 2 页', { exact: true })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await expectListRefreshRecovery(page, '**/api/admin/categories?*', row);
     await page.screenshot({ path: '.local/screenshots/categories.png', fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.getByRole('heading', { name: '分类管理' })).toBeVisible();

@@ -128,3 +128,48 @@ test('a failed registration settings revalidation preserves entered fields', asy
   await expect(alerts).toHaveCount(0);
   await expectEnteredFields();
 });
+
+test('login keeps the registration link and inputs across failed retries', async ({ page }) => {
+  let isFailing = false;
+  let allowRegistration = true;
+  const pattern = '**/api/auth/registration';
+  await page.route(pattern, (route) =>
+    route.fulfill({
+      status: isFailing ? 503 : 200,
+      json: isFailing
+        ? {
+            status: false,
+            data: {},
+            error: { code: 'TEMPORARY_ERROR', message: '注册设置暂不可用' },
+          }
+        : { status: true, data: { allowRegistration }, error: {} },
+    }),
+  );
+  await page.goto('/login');
+  const registrationLink = page.getByRole('link', { name: '创建账号', exact: true });
+  const error = page.getByRole('alert').filter({ hasText: '注册设置暂不可用' });
+  await expect(registrationLink).toBeVisible();
+  await page.getByLabel('账号', { exact: true }).fill('refresh_user');
+  await page.getByLabel('密码', { exact: true }).fill('input-to-preserve');
+
+  await page.waitForTimeout(2300);
+  isFailing = true;
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('offline'));
+    window.dispatchEvent(new Event('online'));
+  });
+  await expect(error).toBeVisible();
+  await expect(registrationLink).toBeVisible();
+  const failedRetry = page.waitForResponse(pattern);
+  await error.getByRole('button', { name: '重试', exact: true }).click();
+  expect((await failedRetry).status()).toBe(503);
+  await expect(registrationLink).toBeVisible();
+
+  isFailing = false;
+  allowRegistration = false;
+  await error.getByRole('button', { name: '重试', exact: true }).click();
+  await expect(error).toBeHidden();
+  await expect(registrationLink).toBeHidden();
+  await expect(page.getByLabel('账号', { exact: true })).toHaveValue('refresh_user');
+  await expect(page.getByLabel('密码', { exact: true })).toHaveValue('input-to-preserve');
+});

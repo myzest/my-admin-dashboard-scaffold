@@ -34,7 +34,7 @@ export default function AdminBalanceLogsPage({ user }) {
   );
 
   function refreshLogs() {
-    return mutate(undefined, { revalidate: true, throwOnError: false });
+    return mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
   }
 
   async function filterLogs(event) {

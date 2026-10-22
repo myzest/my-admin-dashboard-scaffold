@@ -36,7 +36,7 @@ export default function UsersPage({ user }) {
   });
 
   function refreshList() {
-    return mutate(undefined, { revalidate: true, throwOnError: false });
+    return mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
   }
 
   function openEditor(account = null) {

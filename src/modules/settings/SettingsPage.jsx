@@ -44,10 +44,7 @@ export default function SettingsPage({ user }) {
         <p className={styles.description}>
           关闭自行注册后，已有用户仍可登录，管理员仍可创建普通用户。
         </p>
-        <RequestError
-          error={error}
-          onRetry={() => mutate(undefined, { revalidate: true, throwOnError: false })}
-        />
+        <RequestError error={error} onRetry={() => mutate()} />
         {isLoading ? <Spin tip="正在加载…" /> : null}
         {data ? (
           <div className={styles.form}>

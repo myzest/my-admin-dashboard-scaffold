@@ -43,7 +43,7 @@ export default function CategoriesPage({ user }) {
   }
 
   async function refreshList() {
-    await mutate(undefined, { revalidate: true, throwOnError: false });
+    await mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
   }
 
   async function saveCategory(values) {

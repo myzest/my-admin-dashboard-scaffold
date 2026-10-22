@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
 import { site } from '../../src/config/site.js';
+import { expectListRefreshRecovery } from '../helpers/refresh.js';
 
 test('admin and ordinary users complete registration, balance and account flows', async ({
   page,
@@ -59,6 +60,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     const row = page.getByRole('row').filter({ hasText: username });
     await expect(row).toContainText('0.0000');
     await expect(row).toContainText('已启用');
+
+    await expectListRefreshRecovery(page, '**/api/admin/users?*', row);
 
     await row.getByRole('button', { name: '调整余额', exact: true }).click();
     await dialog.getByLabel('金额', { exact: true }).fill('1.23456');
@@ -149,6 +152,7 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(logRow).toContainText(username);
     await expect(logRow).toContainText('1.2345');
     await expect(logRow).toContainText(process.env.ADMIN_USERNAME);
+    await expectListRefreshRecovery(page, '**/api/admin/balance-logs?*', logRow);
     await page.screenshot({ path: '.local/screenshots/balance-logs.png', fullPage: true });
 
     memberContext = await browser.newContext({
@@ -166,6 +170,37 @@ test('admin and ordinary users complete registration, balance and account flows'
     const registrationSwitch = page.getByRole('switch', { name: '允许自行注册' });
     await expect(registrationSwitch).toHaveAttribute('aria-checked', 'false');
     await registrationSwitch.click();
+    const settingsPattern = '**/api/admin/settings/registration';
+    const settingsError = page.getByRole('alert').filter({ hasText: '注册设置暂不可用' });
+    const failSettings = (route) =>
+      route.fulfill({
+        status: 503,
+        json: {
+          status: false,
+          data: {},
+          error: { code: 'TEMPORARY_ERROR', message: '注册设置暂不可用' },
+        },
+      });
+    await page.route(settingsPattern, failSettings);
+    try {
+      // Reconnect after SWR's default request deduplication interval.
+      await page.waitForTimeout(2300);
+      await page.evaluate(() => {
+        window.dispatchEvent(new Event('offline'));
+        window.dispatchEvent(new Event('online'));
+      });
+      await expect(settingsError).toBeVisible();
+      await expect(registrationSwitch).toHaveAttribute('aria-checked', 'true');
+      const failedRetry = page.waitForResponse(settingsPattern);
+      await settingsError.getByRole('button', { name: '重试', exact: true }).click();
+      expect((await failedRetry).status()).toBe(503);
+      await expect(registrationSwitch).toHaveAttribute('aria-checked', 'true');
+    } finally {
+      await page.unroute(settingsPattern, failSettings);
+    }
+    await settingsError.getByRole('button', { name: '重试', exact: true }).click();
+    await expect(settingsError).toBeHidden();
+    await expect(registrationSwitch).toHaveAttribute('aria-checked', 'true');
     const saveResponse = page.waitForResponse(
       (response) =>
         response.url().endsWith('/api/admin/settings/registration') &&
@@ -253,6 +288,11 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(memberPage).toHaveURL('/user/dashboard');
     await memberPage.goto('/user/balance-logs');
     await expect(memberPage.getByRole('row').filter({ hasText: reason })).toContainText('1.2345');
+    await expectListRefreshRecovery(
+      memberPage,
+      '**/api/user/balance-logs?*',
+      memberPage.getByRole('row').filter({ hasText: reason }),
+    );
     await expect(memberPage.getByLabel('按用户 ID 筛选')).toHaveCount(0);
     expect((await memberPage.request.get('/api/admin/users')).status()).toBe(403);
 

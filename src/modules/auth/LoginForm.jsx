@@ -80,10 +80,7 @@ export default function LoginForm() {
           登录
         </Button>
       </Form>
-      <RequestError
-        error={registrationError}
-        onRetry={() => mutate(undefined, { revalidate: true, throwOnError: false })}
-      />
+      <RequestError error={registrationError} onRetry={() => mutate()} />
       {registration?.allowRegistration ? (
         <p className={styles.footer}>
           还没有账号？<Link href="/register">创建账号</Link>
