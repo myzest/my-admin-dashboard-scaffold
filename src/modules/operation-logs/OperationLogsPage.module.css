@@ -9,12 +9,7 @@
   width: 160px;
 }
 
-.change {
-  display: block;
-  max-width: 100%;
-}
-
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .filters {
     flex-basis: 100%;
   }

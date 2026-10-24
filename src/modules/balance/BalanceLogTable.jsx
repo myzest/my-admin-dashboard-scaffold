@@ -1,13 +1,16 @@
-import { Empty, Table } from '@arco-design/web-react';
+import { Empty } from '@arco-design/web-react';
+import AdaptiveTable from '@/components/AdaptiveTable';
+import ExpandableText from '@/components/ExpandableText';
 import { formatDateTime } from '@/utils/date';
 import styles from '@/styles/workspace.module.css';
 
 export const balanceLogColumns = [
-  { title: '时间', dataIndex: 'createdAt', width: 180, render: formatDateTime },
+  { title: '时间', dataIndex: 'createdAt', width: 180, fixed: 'left', render: formatDateTime },
   {
     title: '变动金额',
     dataIndex: 'changeAmount',
-    width: 150,
+    width: 220,
+    align: 'right',
     render: (value) => (
       <span className={styles.amount}>{value.startsWith('-') ? value : `+${value}`}</span>
     ),
@@ -15,17 +18,29 @@ export const balanceLogColumns = [
   {
     title: '变动前余额',
     dataIndex: 'balanceBefore',
-    width: 160,
+    width: 220,
+    align: 'right',
     render: (value) => <span className={styles.amount}>{value}</span>,
   },
   {
     title: '变动后余额',
     dataIndex: 'balanceAfter',
-    width: 160,
+    width: 220,
+    align: 'right',
     render: (value) => <span className={styles.amount}>{value}</span>,
   },
-  { title: '原因', dataIndex: 'reason', width: 240 },
-  { title: '操作人', dataIndex: 'operatorUsername', width: 150, ellipsis: true },
+  {
+    title: '原因',
+    dataIndex: 'reason',
+    width: 240,
+    render: (value) => <ExpandableText>{value}</ExpandableText>,
+  },
+  {
+    title: '操作人',
+    dataIndex: 'operatorUsername',
+    width: 150,
+    render: (value) => <ExpandableText>{value}</ExpandableText>,
+  },
 ];
 
 export default function BalanceLogTable({
@@ -37,7 +52,7 @@ export default function BalanceLogTable({
   onPageChange,
 }) {
   return (
-    <Table
+    <AdaptiveTable
       rowKey="id"
       columns={columns}
       data={data?.items || []}

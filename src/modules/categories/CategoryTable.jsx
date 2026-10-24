@@ -1,5 +1,6 @@
-import { Button, Empty, Space, Table, Tag } from '@arco-design/web-react';
-import styles from '@/styles/workspace.module.css';
+import { Button, Empty, Space, Tag } from '@arco-design/web-react';
+import AdaptiveTable from '@/components/AdaptiveTable';
+import ExpandableText from '@/components/ExpandableText';
 import { formatDateTime } from '@/utils/date';
 
 export default function CategoryTable({
@@ -13,8 +14,18 @@ export default function CategoryTable({
   onDelete,
 }) {
   const columns = [
-    { title: '分类名称', dataIndex: 'name', width: 200, ellipsis: true },
-    { title: '说明', dataIndex: 'description', ellipsis: true, render: (value) => value || '—' },
+    {
+      title: '分类名称',
+      dataIndex: 'name',
+      width: 200,
+      fixed: 'left',
+      render: (value) => <ExpandableText>{value}</ExpandableText>,
+    },
+    {
+      title: '说明',
+      dataIndex: 'description',
+      render: (value) => <ExpandableText>{value}</ExpandableText>,
+    },
     {
       title: '状态',
       dataIndex: 'isEnabled',
@@ -33,6 +44,7 @@ export default function CategoryTable({
       title: '操作',
       key: 'actions',
       width: 144,
+      fixed: 'right',
       render: (_, category) => (
         <Space size={4}>
           <Button type="text" size="small" onClick={() => onEdit(category)}>
@@ -47,35 +59,33 @@ export default function CategoryTable({
   ];
 
   return (
-    <div className={styles.table}>
-      <Table
-        rowKey="id"
-        columns={columns}
-        data={data ? data.items : []}
-        loading={isLoading}
-        border={false}
-        scroll={{ x: 850 }}
-        pagination={{
-          current: page,
-          pageSize,
-          total: data ? data.pagination.total : 0,
-          showTotal: true,
-          sizeCanChange: true,
-          sizeOptions: [10, 20, 50],
-        }}
-        onChange={({ current, pageSize: nextPageSize }) => onPageChange(current, nextPageSize)}
-        noDataElement={
-          isLoading ? (
-            '正在加载…'
-          ) : (
-            <Empty
-              description={
-                hasSearch ? '没有匹配的分类，请调整关键词。' : '暂无分类，点击“新增分类”开始。'
-              }
-            />
-          )
-        }
-      />
-    </div>
+    <AdaptiveTable
+      rowKey="id"
+      columns={columns}
+      data={data ? data.items : []}
+      loading={isLoading}
+      border={false}
+      scroll={{ x: 850 }}
+      pagination={{
+        current: page,
+        pageSize,
+        total: data ? data.pagination.total : 0,
+        showTotal: true,
+        sizeCanChange: true,
+        sizeOptions: [10, 20, 50],
+      }}
+      onChange={({ current, pageSize: nextPageSize }) => onPageChange(current, nextPageSize)}
+      noDataElement={
+        isLoading ? (
+          '正在加载…'
+        ) : (
+          <Empty
+            description={
+              hasSearch ? '没有匹配的分类，请调整关键词。' : '暂无分类，点击“新增分类”开始。'
+            }
+          />
+        )
+      }
+    />
   );
 }

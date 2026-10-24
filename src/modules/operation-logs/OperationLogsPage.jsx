@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Button, Empty, Input, Select, Table, Typography } from '@arco-design/web-react';
+import { Button, Empty, Input, Select } from '@arco-design/web-react';
+import AdaptiveTable from '@/components/AdaptiveTable';
+import ExpandableText from '@/components/ExpandableText';
 import { IconRefresh } from '@arco-design/web-react/icon';
 import useSWR from 'swr';
 import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
+import ListToolbar from '@/components/ListToolbar';
 import RequestError from '@/components/RequestError';
 import { formatDateTime } from '@/utils/date';
 import {
@@ -31,8 +34,13 @@ function formatChangeValue(value) {
 }
 
 const columns = [
-  { title: '时间', dataIndex: 'createdAt', width: 180, render: formatDateTime },
-  { title: '操作人', dataIndex: 'operatorUsername', width: 150, ellipsis: true },
+  { title: '时间', dataIndex: 'createdAt', width: 180, fixed: 'left', render: formatDateTime },
+  {
+    title: '操作人',
+    dataIndex: 'operatorUsername',
+    width: 150,
+    render: (value) => <ExpandableText>{value}</ExpandableText>,
+  },
   {
     title: '动作',
     dataIndex: 'action',
@@ -57,9 +65,9 @@ const columns = [
         return record.action === 'USER_DELETED' ? '账号及其关联日志、会话已清理' : '—';
       }
       return fields.map(([field, { before, after }]) => (
-        <Typography.Text key={field} className={pageStyles.change} ellipsis={{ showTooltip: true }}>
+        <ExpandableText key={field}>
           {`${OPERATION_FIELD_LABELS[field]}：${formatChangeValue(before)} → ${formatChangeValue(after)}`}
-        </Typography.Text>
+        </ExpandableText>
       ));
     },
   },
@@ -107,8 +115,15 @@ export default function OperationLogsPage({ user }) {
   return (
     <AdminLayout user={user}>
       <PageHeader title="操作日志" description="查看管理员已完成的业务操作和字段变更。" />
-      <section className={styles.panel} aria-label="操作日志列表">
-        <div className={styles.toolbar}>
+      <section className={`${styles.panel} ${styles.listPanel}`} aria-label="操作日志列表">
+        <ListToolbar
+          activeFilterCount={Object.values(filters).filter(Boolean).length}
+          actions={
+            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
+              刷新
+            </Button>
+          }
+        >
           <form className={pageStyles.filters} onSubmit={filterLogs}>
             <Select
               aria-label="按操作动作筛选"
@@ -141,13 +156,10 @@ export default function OperationLogsPage({ user }) {
             <Button htmlType="submit">查询</Button>
             <Button onClick={resetFilters}>重置</Button>
           </form>
-          <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
-            刷新
-          </Button>
-        </div>
+        </ListToolbar>
         <RequestError error={error} onRetry={refreshLogs} />
         {!error || data ? (
-          <Table
+          <AdaptiveTable
             rowKey="id"
             columns={columns}
             data={data?.items || []}

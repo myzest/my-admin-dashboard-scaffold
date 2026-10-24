@@ -1,9 +1,10 @@
 import { useId, useState } from 'react';
-import { Alert, Button, Form, Input, Modal, Select, Space } from '@arco-design/web-react';
+import { Alert, Button, Form, Input, Select, Space } from '@arco-design/web-react';
 import { useSWRConfig } from 'swr';
 import { v4 as createOperationId } from 'uuid';
 import { useAuthRequest } from '@/modules/auth/client';
 import RequestError from '@/components/RequestError';
+import ResponsiveModal from '@/components/ResponsiveModal';
 import useFormErrors from '@/components/useFormErrors';
 import { balanceChangeSchema } from '@/modules/users/client';
 import { createFieldRules } from '@/lib/validation';
@@ -99,15 +100,39 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
   }
 
   return (
-    <Modal
+    <ResponsiveModal
       visible
       title="调整余额"
-      footer={null}
+      footer={
+        <Space>
+          <Button onClick={onCancel} disabled={isSubmitting}>
+            取消
+          </Button>
+          {pendingAdjustment ? (
+            <Button
+              type="primary"
+              loading={isSubmitting}
+              onClick={() => adjustBalance(pendingAdjustment.payload)}
+            >
+              重试本次调整
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              htmlType="submit"
+              form={formId}
+              loading={isSubmitting}
+              disabled={Boolean(storedAdjustment.error)}
+            >
+              确认调整
+            </Button>
+          )}
+        </Space>
+      }
       onCancel={onCancel}
       maskClosable={false}
       closable={!isSubmitting}
       escToExit={!isSubmitting}
-      style={{ width: 'min(480px, calc(100vw - 32px))' }}
     >
       <p className={styles.description}>
         {user.username} · 当前余额 {user.balance}
@@ -171,32 +196,6 @@ export default function BalanceAdjustmentModal({ operatorId, user, onCancel, onS
           />
         </Form.Item>
       </Form>
-      <div className={styles.formActions}>
-        <Space>
-          <Button onClick={onCancel} disabled={isSubmitting}>
-            取消
-          </Button>
-          {pendingAdjustment ? (
-            <Button
-              type="primary"
-              loading={isSubmitting}
-              onClick={() => adjustBalance(pendingAdjustment.payload)}
-            >
-              重试本次调整
-            </Button>
-          ) : (
-            <Button
-              type="primary"
-              htmlType="submit"
-              form={formId}
-              loading={isSubmitting}
-              disabled={Boolean(storedAdjustment.error)}
-            >
-              确认调整
-            </Button>
-          )}
-        </Space>
-      </div>
-    </Modal>
+    </ResponsiveModal>
   );
 }

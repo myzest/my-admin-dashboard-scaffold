@@ -4,6 +4,7 @@ import { ConfigProvider } from '@arco-design/web-react';
 import zhCN from '@arco-design/web-react/lib/locale/zh-CN';
 import { SWRConfig } from 'swr';
 import { request } from '@/lib/request';
+import LayoutPreferencesProvider from '@/components/LayoutPreferencesProvider';
 import '@arco-design/web-react/dist/css/arco.css';
 import '@/styles/globals.css';
 
@@ -22,18 +23,20 @@ export default function App({ Component, pageProps }) {
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <SWRConfig
-        key={userId || 'guest'}
-        value={{
-          ...swrOptions,
-          provider: () => new Map(),
-          onError: (error) => {
-            if (userId && error.status === 401) router.replace('/login');
-          },
-        }}
-      >
-        <Component {...pageProps} />
-      </SWRConfig>
+      <LayoutPreferencesProvider>
+        <SWRConfig
+          key={userId || 'guest'}
+          value={{
+            ...swrOptions,
+            provider: () => new Map(),
+            onError: (error) => {
+              if (userId && error.status === 401) router.replace('/login');
+            },
+          }}
+        >
+          <Component {...pageProps} />
+        </SWRConfig>
+      </LayoutPreferencesProvider>
     </ConfigProvider>
   );
 }

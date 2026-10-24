@@ -1,0 +1,36 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filters {
+  flex: 1;
+  min-width: 0;
+}
+
+.actions {
+  margin-left: auto;
+}
+
+.toggle {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .toggle {
+    display: inline-block;
+  }
+
+  .filters {
+    display: none;
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .filters[data-expanded='true'] {
+    display: block;
+  }
+}

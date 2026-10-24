@@ -145,7 +145,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(row).toContainText('1.2345');
     await page.screenshot({ path: '.local/screenshots/users.png', fullPage: true });
 
-    await row.getByRole('link', { name: '日志', exact: true }).click();
+    await row.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByRole('menuitem', { name: '日志', exact: true }).click();
     await expect(page).toHaveURL(`/admin/balance-logs?userId=${userId}`);
     await expect(page.getByRole('heading', { name: '余额日志', exact: true })).toBeVisible();
     const logRow = page.getByRole('row').filter({ hasText: reason });
@@ -297,7 +298,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     expect((await memberPage.request.get('/api/admin/users')).status()).toBe(403);
 
     await page.goto('/admin/users');
-    await row.getByRole('button', { name: '停用', exact: true }).click();
+    await row.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByRole('menuitem', { name: '停用', exact: true }).click();
     await expect(dialog).toContainText('账号、余额和日志仍会保留');
     await dialog.getByRole('button', { name: '确认停用', exact: true }).click();
     await expect(dialog).toBeHidden();
@@ -305,7 +307,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(row).toContainText('1.2345');
     await memberPage.goto('/user/dashboard');
     await expect(memberPage).toHaveURL('/login');
-    await row.getByRole('button', { name: '启用', exact: true }).click();
+    await row.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByRole('menuitem', { name: '启用', exact: true }).click();
     await dialog.getByRole('button', { name: '确认启用', exact: true }).click();
     await expect(dialog).toBeHidden();
     await expect(row).toContainText('已启用');
@@ -313,7 +316,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     await login(memberPage, username, accountPassword);
     await expect(memberPage).toHaveURL('/user/dashboard');
 
-    await row.getByRole('button', { name: '重置密码', exact: true }).click();
+    await row.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByRole('menuitem', { name: '重置密码', exact: true }).click();
     await expect(dialog).toContainText('所有设备上的登录会话都会失效');
     await dialog.getByLabel('新密码', { exact: true }).fill('short');
     await dialog.getByRole('button', { name: '确认重置', exact: true }).click();
@@ -350,7 +354,8 @@ test('admin and ordinary users complete registration, balance and account flows'
     await expect(memberPage.getByText('1.2345', { exact: true })).toBeVisible();
 
     await page.goto('/admin/users');
-    await row.getByRole('button', { name: '删除', exact: true }).click();
+    await row.getByRole('button', { name: '更多', exact: true }).click();
+    await page.getByRole('menuitem', { name: '删除', exact: true }).click();
     await expect(dialog).toContainText('1.2345');
     await dialog.getByRole('button', { name: '确认删除', exact: true }).click();
     await expect(dialog).toBeHidden();

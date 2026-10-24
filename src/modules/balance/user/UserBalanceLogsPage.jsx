@@ -33,7 +33,7 @@ export default function UserBalanceLogsPage({ user }) {
           刷新
         </Button>
       </PageHeader>
-      <section className={styles.panel} aria-label="余额日志列表">
+      <section className={`${styles.panel} ${styles.listPanel}`} aria-label="余额日志列表">
         <RequestError error={error} onRetry={refreshLogs} />
         {!error || data ? (
           <BalanceLogTable

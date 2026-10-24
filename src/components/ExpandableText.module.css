@@ -1,0 +1,30 @@
+.trigger {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trigger:hover {
+  color: var(--app-accent);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+}
+
+.content {
+  max-width: min(400px, calc(100vw - 64px));
+  max-height: min(320px, calc(var(--app-viewport-height, 100dvh) - 120px));
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

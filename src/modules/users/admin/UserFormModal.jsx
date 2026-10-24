@@ -1,25 +1,33 @@
 import { useId } from 'react';
-import { Button, Form, Modal, Space } from '@arco-design/web-react';
+import { Button, Form, Space } from '@arco-design/web-react';
+import ResponsiveModal from '@/components/ResponsiveModal';
 import pick from 'lodash/pick';
 import { AccountFields } from '@/modules/auth/client';
 import RequestError from '@/components/RequestError';
 import useFormErrors from '@/components/useFormErrors';
-import styles from '@/styles/workspace.module.css';
 
 export default function UserFormModal({ user, isSaving, error, onSubmit, onCancel }) {
   const formId = useId();
   const form = useFormErrors(error);
 
   return (
-    <Modal
+    <ResponsiveModal
       visible
       title={user ? '编辑用户' : '新增用户'}
-      footer={null}
+      footer={
+        <Space>
+          <Button onClick={onCancel} disabled={isSaving}>
+            取消
+          </Button>
+          <Button type="primary" htmlType="submit" form={formId} loading={isSaving}>
+            {user ? '保存修改' : '创建用户'}
+          </Button>
+        </Space>
+      }
       onCancel={onCancel}
       maskClosable={false}
       closable={!isSaving}
       escToExit={!isSaving}
-      style={{ width: 'min(480px, calc(100vw - 32px))' }}
     >
       <RequestError error={error} />
       <Form
@@ -33,17 +41,7 @@ export default function UserFormModal({ user, isSaving, error, onSubmit, onCance
         disabled={isSaving}
       >
         <AccountFields includePassword={!user} />
-        <div className={styles.formActions}>
-          <Space>
-            <Button onClick={onCancel} disabled={isSaving}>
-              取消
-            </Button>
-            <Button type="primary" htmlType="submit" loading={isSaving}>
-              {user ? '保存修改' : '创建用户'}
-            </Button>
-          </Space>
-        </div>
       </Form>
-    </Modal>
+    </ResponsiveModal>
   );
 }

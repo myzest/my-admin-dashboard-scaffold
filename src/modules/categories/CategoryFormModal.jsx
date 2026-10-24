@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { Alert, Button, Form, Input, Modal, Space, Switch } from '@arco-design/web-react';
+import { Alert, Button, Form, Input, Space, Switch } from '@arco-design/web-react';
+import ResponsiveModal from '@/components/ResponsiveModal';
 import pick from 'lodash/pick';
 import useFormErrors from '@/components/useFormErrors';
 import { createFieldRules } from '@/lib/validation';
@@ -14,15 +15,23 @@ export default function CategoryFormModal({ category, isSaving, error, onSubmit,
     : { name: '', description: '', isEnabled: true };
 
   return (
-    <Modal
+    <ResponsiveModal
       visible
       title={category ? '编辑分类' : '新增分类'}
-      footer={null}
+      footer={
+        <Space>
+          <Button onClick={onCancel} disabled={isSaving}>
+            取消
+          </Button>
+          <Button type="primary" htmlType="submit" form={formId} loading={isSaving}>
+            {category ? '保存修改' : '创建分类'}
+          </Button>
+        </Space>
+      }
       onCancel={onCancel}
       maskClosable={false}
       closable={!isSaving}
       escToExit={!isSaving}
-      style={{ width: 'min(480px, calc(100vw - 32px))' }}
     >
       {error ? (
         <Alert type="error" content={error.message} role="alert" className={styles.error} />
@@ -62,17 +71,7 @@ export default function CategoryFormModal({ category, isSaving, error, onSubmit,
         >
           <Switch checkedText="开" uncheckedText="关" aria-label="启用分类" />
         </Form.Item>
-        <div className={styles.formActions}>
-          <Space>
-            <Button onClick={onCancel} disabled={isSaving}>
-              取消
-            </Button>
-            <Button type="primary" htmlType="submit" loading={isSaving}>
-              {category ? '保存修改' : '创建分类'}
-            </Button>
-          </Space>
-        </div>
       </Form>
-    </Modal>
+    </ResponsiveModal>
   );
 }

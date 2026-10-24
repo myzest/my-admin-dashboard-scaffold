@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { Button, Empty, Space, Table, Tag } from '@arco-design/web-react';
+import { Button, Dropdown, Empty, Menu, Space, Tag } from '@arco-design/web-react';
+import AdaptiveTable from '@/components/AdaptiveTable';
+import ExpandableText from '@/components/ExpandableText';
 import { formatDateTime } from '@/utils/date';
 import styles from '@/styles/workspace.module.css';
 
@@ -17,9 +19,20 @@ export default function UserTable({
   onChangeStatus,
 }) {
   const columns = [
-    { title: 'ID', dataIndex: 'id', width: 70 },
-    { title: '用户名', dataIndex: 'username', width: 160, ellipsis: true },
-    { title: '显示名称', dataIndex: 'displayName', width: 160, ellipsis: true },
+    { title: 'ID', dataIndex: 'id', width: 110, fixed: 'left' },
+    {
+      title: '用户名',
+      dataIndex: 'username',
+      width: 160,
+      fixed: 'left',
+      render: (value) => <ExpandableText>{value}</ExpandableText>,
+    },
+    {
+      title: '显示名称',
+      dataIndex: 'displayName',
+      width: 160,
+      render: (value) => <ExpandableText>{value}</ExpandableText>,
+    },
     {
       title: '状态',
       dataIndex: 'isEnabled',
@@ -31,51 +44,72 @@ export default function UserTable({
     {
       title: '余额',
       dataIndex: 'balance',
-      width: 160,
+      width: 220,
+      align: 'right',
       render: (value) => <span className={styles.amount}>{value}</span>,
     },
     { title: '创建时间', dataIndex: 'createdAt', width: 180, render: formatDateTime },
     {
       title: '操作',
       key: 'actions',
-      width: 290,
+      width: 224,
+      fixed: 'right',
       render: (_, user) => (
-        <Space direction="vertical" size={0}>
-          <Space size={4}>
-            <Button type="text" size="small" onClick={() => onEdit(user)}>
-              编辑
+        <Space size={0} className={styles.rowActions}>
+          <Button type="text" size="small" onClick={() => onEdit(user)}>
+            编辑
+          </Button>
+          <Button type="text" size="small" onClick={() => onAdjustBalance(user)}>
+            调整余额
+          </Button>
+          <Dropdown
+            trigger="click"
+            triggerProps={{ containerScrollToClose: true, escToClose: true }}
+            droplist={
+              <Menu>
+                {/* Let the link handle Enter; Arco's key handler moves focus before its click. */}
+                <Menu.Item
+                  key="logs"
+                  wrapper={Link}
+                  href={`/admin/balance-logs?userId=${user.id}`}
+                  onKeyDown={undefined}
+                >
+                  日志
+                </Menu.Item>
+                <Menu.Item key="password" onClick={() => onResetPassword(user)}>
+                  重置密码
+                </Menu.Item>
+                <Menu.Item key="status" onClick={() => onChangeStatus(user)}>
+                  {user.isEnabled ? '停用' : '启用'}
+                </Menu.Item>
+                <Menu.Item key="delete" onClick={() => onDelete(user)}>
+                  <span className={styles.danger}>删除</span>
+                </Menu.Item>
+              </Menu>
+            }
+          >
+            <Button
+              type="text"
+              size="small"
+              aria-haspopup="menu"
+              onClick={(event) => event.currentTarget.focus({ preventScroll: true })}
+            >
+              更多
             </Button>
-            <Button type="text" size="small" onClick={() => onAdjustBalance(user)}>
-              调整余额
-            </Button>
-            <Link href={`/admin/balance-logs?userId=${user.id}`} className={styles.link}>
-              日志
-            </Link>
-          </Space>
-          <Space size={4}>
-            <Button type="text" size="small" onClick={() => onResetPassword(user)}>
-              重置密码
-            </Button>
-            <Button type="text" size="small" onClick={() => onChangeStatus(user)}>
-              {user.isEnabled ? '停用' : '启用'}
-            </Button>
-            <Button type="text" size="small" status="danger" onClick={() => onDelete(user)}>
-              删除
-            </Button>
-          </Space>
+          </Dropdown>
         </Space>
       ),
     },
   ];
 
   return (
-    <Table
+    <AdaptiveTable
       rowKey="id"
       columns={columns}
       data={data?.items || []}
       loading={isLoading}
       border={false}
-      scroll={{ x: 1120 }}
+      scroll={{ x: columns.reduce((width, column) => width + column.width, 0) }}
       pagination={{
         current: page,
         pageSize,

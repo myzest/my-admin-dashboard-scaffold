@@ -5,22 +5,38 @@ import { IconRefresh } from '@arco-design/web-react/icon';
 import useSWR from 'swr';
 import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
+import ExpandableText from '@/components/ExpandableText';
+import ListToolbar from '@/components/ListToolbar';
 import RequestError from '@/components/RequestError';
 import BalanceLogTable, { balanceLogColumns } from '../BalanceLogTable';
 import styles from '@/styles/workspace.module.css';
 
 const columns = [
   balanceLogColumns[0],
-  { title: '用户', dataIndex: 'username', width: 150, ellipsis: true },
+  {
+    title: '用户',
+    dataIndex: 'username',
+    width: 150,
+    render: (value) => <ExpandableText>{value}</ExpandableText>,
+  },
   ...balanceLogColumns.slice(1),
 ];
 
 export default function AdminBalanceLogsPage({ user }) {
   const router = useRouter();
   const activeUserId = typeof router.query.userId === 'string' ? router.query.userId : '';
+  const [previousUserId, setPreviousUserId] = useState(activeUserId);
   const [userId, setUserId] = useState(activeUserId);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Sync URL filters without remounting the toolbar and losing its open state.
+  if (previousUserId !== activeUserId) {
+    setPreviousUserId(activeUserId);
+    setUserId(activeUserId);
+    setPage(1);
+  }
+
   const query = new URLSearchParams({ page, pageSize });
   if (activeUserId) query.set('userId', activeUserId);
   const { data, error, isLoading, isValidating, mutate } = useSWR(
@@ -50,8 +66,15 @@ export default function AdminBalanceLogsPage({ user }) {
   return (
     <AdminLayout user={user}>
       <PageHeader title="余额日志" description="查看用户余额变动和调整原因。" />
-      <section className={styles.panel} aria-label="余额日志列表">
-        <div className={styles.toolbar}>
+      <section className={`${styles.panel} ${styles.listPanel}`} aria-label="余额日志列表">
+        <ListToolbar
+          activeFilterCount={Number(Boolean(activeUserId))}
+          actions={
+            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
+              刷新
+            </Button>
+          }
+        >
           <form className={styles.search} onSubmit={filterLogs}>
             <Input
               aria-label="按用户 ID 筛选"
@@ -63,10 +86,7 @@ export default function AdminBalanceLogsPage({ user }) {
             />
             <Button htmlType="submit">查询</Button>
           </form>
-          <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
-            刷新
-          </Button>
-        </div>
+        </ListToolbar>
         <RequestError error={error} onRetry={refreshLogs} />
         {!error || data ? (
           <BalanceLogTable

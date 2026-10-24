@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Message, Modal, Space } from '@arco-design/web-react';
+import { Alert, Button, Input, Message, Space } from '@arco-design/web-react';
 import { IconPlus, IconRefresh, IconSearch } from '@arco-design/web-react/icon';
 import useSWR from 'swr';
 import { useAuthRequest } from '@/modules/auth/client';
 import { AdminLayout } from '@/modules/auth/admin/client';
+import ResponsiveModal from '@/components/ResponsiveModal';
 import PageHeader from '@/components/PageHeader';
+import ListToolbar from '@/components/ListToolbar';
 import RequestError from '@/components/RequestError';
 import CategoryFormModal from './CategoryFormModal';
 import CategoryTable from './CategoryTable';
@@ -95,8 +97,15 @@ export default function CategoriesPage({ user }) {
         </Button>
       </PageHeader>
 
-      <section className={styles.panel} aria-label="分类列表">
-        <div className={styles.toolbar}>
+      <section className={`${styles.panel} ${styles.listPanel}`} aria-label="分类列表">
+        <ListToolbar
+          activeFilterCount={Number(Boolean(search))}
+          actions={
+            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
+              刷新
+            </Button>
+          }
+        >
           <form onSubmit={searchCategories} className={styles.search}>
             <Input
               aria-label="搜索分类名称"
@@ -109,10 +118,7 @@ export default function CategoriesPage({ user }) {
             />
             <Button htmlType="submit">查询</Button>
           </form>
-          <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
-            刷新
-          </Button>
-        </div>
+        </ListToolbar>
 
         <RequestError error={error} onRetry={refreshList} />
         {!error || data ? (
@@ -142,7 +148,7 @@ export default function CategoriesPage({ user }) {
         />
       ) : null}
 
-      <Modal
+      <ResponsiveModal
         title="删除分类"
         visible={Boolean(deletingCategory)}
         unmountOnExit
@@ -156,7 +162,6 @@ export default function CategoriesPage({ user }) {
         cancelButtonProps={{ disabled: isMutating }}
         onOk={deleteCategory}
         onCancel={() => setDeletingCategory(null)}
-        style={{ width: 'min(440px, calc(100vw - 32px))' }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <p className={styles.description}>
@@ -166,7 +171,7 @@ export default function CategoriesPage({ user }) {
             <Alert type="error" content={mutationError.message} role="alert" />
           ) : null}
         </Space>
-      </Modal>
+      </ResponsiveModal>
     </AdminLayout>
   );
 }

@@ -34,6 +34,7 @@ export default function DashboardPage({ user }) {
       <section className={styles.panel} aria-label="我的账号">
         <h2>我的账号</h2>
         <Descriptions
+          className={styles.accountDetails}
           column={1}
           data={[
             { label: '用户名', value: account.username },

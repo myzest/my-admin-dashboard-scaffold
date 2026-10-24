@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Button, Input, Message, Modal } from '@arco-design/web-react';
+import { Button, Input, Message } from '@arco-design/web-react';
 import { IconPlus, IconRefresh, IconSearch } from '@arco-design/web-react/icon';
 import useSWR, { useSWRConfig } from 'swr';
+import ResponsiveModal from '@/components/ResponsiveModal';
 import PageHeader from '@/components/PageHeader';
+import ListToolbar from '@/components/ListToolbar';
 import RequestError from '@/components/RequestError';
 import { useAuthRequest } from '@/modules/auth/client';
 import { AdminLayout } from '@/modules/auth/admin/client';
@@ -111,8 +113,15 @@ export default function UsersPage({ user }) {
           新增用户
         </Button>
       </PageHeader>
-      <section className={styles.panel} aria-label="用户列表">
-        <div className={styles.toolbar}>
+      <section className={`${styles.panel} ${styles.listPanel}`} aria-label="用户列表">
+        <ListToolbar
+          activeFilterCount={Number(Boolean(search))}
+          actions={
+            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
+              刷新
+            </Button>
+          }
+        >
           <form
             className={styles.search}
             onSubmit={(event) => {
@@ -132,10 +141,7 @@ export default function UsersPage({ user }) {
             />
             <Button htmlType="submit">查询</Button>
           </form>
-          <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
-            刷新
-          </Button>
-        </div>
+        </ListToolbar>
         <RequestError error={error} onRetry={refreshList} />
         {!error || data ? (
           <UserTable
@@ -193,7 +199,7 @@ export default function UsersPage({ user }) {
           }}
         />
       ) : null}
-      <Modal
+      <ResponsiveModal
         title={statusUser?.isEnabled ? '停用用户' : '启用用户'}
         visible={Boolean(statusUser)}
         unmountOnExit
@@ -206,7 +212,6 @@ export default function UsersPage({ user }) {
         cancelButtonProps={{ disabled: isSaving }}
         onOk={updateStatus}
         onCancel={() => setStatusUser(null)}
-        style={{ width: 'min(480px, calc(100vw - 32px))' }}
       >
         <p className={styles.description}>
           {statusUser?.isEnabled
@@ -214,8 +219,8 @@ export default function UsersPage({ user }) {
             : `确认启用“${statusUser?.username}”吗？该用户可以重新登录，旧登录会话不会恢复。`}
         </p>
         <RequestError error={mutationError} />
-      </Modal>
-      <Modal
+      </ResponsiveModal>
+      <ResponsiveModal
         title="删除用户"
         visible={Boolean(deletingUser)}
         unmountOnExit
@@ -229,14 +234,13 @@ export default function UsersPage({ user }) {
         cancelButtonProps={{ disabled: isSaving }}
         onOk={deleteUser}
         onCancel={() => setDeletingUser(null)}
-        style={{ width: 'min(480px, calc(100vw - 32px))' }}
       >
         <p className={styles.description}>
           确认删除“{deletingUser?.username}”吗？账号、剩余余额（{deletingUser?.balance}
           ）、全部余额日志、关联操作日志和登录会话将一并永久删除，无法恢复。
         </p>
         <RequestError error={mutationError} />
-      </Modal>
+      </ResponsiveModal>
     </AdminLayout>
   );
 }
