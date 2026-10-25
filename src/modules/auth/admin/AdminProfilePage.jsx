@@ -6,7 +6,7 @@ import AdminLayout from './AdminLayout';
 export default function AdminProfilePage({ user }) {
   return (
     <AdminLayout user={user}>
-      <PageHeader title="个人资料" description="查看账号信息，管理登录密码。" />
+      <PageHeader title="个人资料" />
       <AccountDetails user={user} roleLabel="管理员" />
       <PasswordForm endpoint="/api/admin/password" />
     </AdminLayout>

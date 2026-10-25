@@ -91,7 +91,7 @@ export default function CategoriesPage({ user }) {
   return (
     <AdminLayout user={user}>
       {messageHolder}
-      <PageHeader title="分类管理" description="管理分类名称、说明和启用状态。">
+      <PageHeader title="分类管理">
         <Button type="primary" icon={<IconPlus />} onClick={() => openEditor()}>
           新增分类
         </Button>

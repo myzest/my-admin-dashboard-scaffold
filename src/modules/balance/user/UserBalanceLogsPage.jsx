@@ -28,7 +28,7 @@ export default function UserBalanceLogsPage({ user }) {
 
   return (
     <UserLayout user={user}>
-      <PageHeader title="余额日志" description="查看你的每一笔余额变动。">
+      <PageHeader title="余额日志">
         <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
           刷新
         </Button>

@@ -18,7 +18,7 @@ export default function DashboardPage({ user }) {
 
   return (
     <UserLayout user={account}>
-      <PageHeader title="工作台" description={`你好，${account.displayName || account.username}。`}>
+      <PageHeader title="工作台">
         <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshAccount}>
           刷新
         </Button>

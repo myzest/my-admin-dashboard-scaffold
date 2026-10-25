@@ -6,7 +6,7 @@ import UserLayout from './UserLayout';
 export default function UserProfilePage({ user }) {
   return (
     <UserLayout user={user}>
-      <PageHeader title="个人资料" description="查看账号信息，管理登录密码。" />
+      <PageHeader title="个人资料" />
       <AccountDetails user={user} roleLabel="普通用户" />
       <PasswordForm endpoint="/api/user/password" />
     </UserLayout>

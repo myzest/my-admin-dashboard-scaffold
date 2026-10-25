@@ -38,12 +38,9 @@ export default function SettingsPage({ user }) {
   return (
     <AdminLayout user={user}>
       {messageHolder}
-      <PageHeader title="系统设置" description="管理普通用户的注册方式。" />
+      <PageHeader title="系统设置" />
       <section className={styles.panel} aria-label="注册设置">
         <h2>注册设置</h2>
-        <p className={styles.description}>
-          关闭自行注册后，已有用户仍可登录，管理员仍可创建普通用户。
-        </p>
         <RequestError error={error} onRetry={() => mutate()} />
         {isLoading ? <Spin tip="正在加载…" /> : null}
         {data ? (

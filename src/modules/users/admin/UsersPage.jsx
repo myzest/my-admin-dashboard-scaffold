@@ -108,7 +108,7 @@ export default function UsersPage({ user }) {
   return (
     <AdminLayout user={user}>
       {messageHolder}
-      <PageHeader title="用户管理" description="管理普通用户资料和余额。">
+      <PageHeader title="用户管理">
         <Button type="primary" icon={<IconPlus />} onClick={() => openEditor()}>
           新增用户
         </Button>

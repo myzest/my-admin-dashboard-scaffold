@@ -65,7 +65,7 @@ export default function AdminBalanceLogsPage({ user }) {
 
   return (
     <AdminLayout user={user}>
-      <PageHeader title="余额日志" description="查看用户余额变动和调整原因。" />
+      <PageHeader title="余额日志" />
       <section className={`${styles.panel} ${styles.listPanel}`} aria-label="余额日志列表">
         <ListToolbar
           activeFilterCount={Number(Boolean(activeUserId))}

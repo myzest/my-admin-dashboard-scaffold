@@ -13,7 +13,7 @@ const ApiReference = dynamic(
 export default function ApiDocsPage({ user, apiDocument }) {
   return (
     <AdminLayout user={user}>
-      <PageHeader title="接口文档" description="查看 /health 示例的请求约定、响应结构与调用方式。">
+      <PageHeader title="接口文档">
         <Button
           href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(apiDocument, null, 2))}`}
           download="openapi.json"

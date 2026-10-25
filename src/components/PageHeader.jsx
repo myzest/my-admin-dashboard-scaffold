@@ -1,12 +1,9 @@
 import styles from '@/styles/workspace.module.css';
 
-export default function PageHeader({ title, description, children }) {
+export default function PageHeader({ title, children }) {
   return (
     <div className={styles.pageHeading}>
-      <div>
-        <h1>{title}</h1>
-        {description ? <p>{description}</p> : null}
-      </div>
+      <h1>{title}</h1>
       {children}
     </div>
   );

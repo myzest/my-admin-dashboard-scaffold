@@ -114,7 +114,7 @@ export default function OperationLogsPage({ user }) {
 
   return (
     <AdminLayout user={user}>
-      <PageHeader title="操作日志" description="查看管理员已完成的业务操作和字段变更。" />
+      <PageHeader title="操作日志" />
       <section className={`${styles.panel} ${styles.listPanel}`} aria-label="操作日志列表">
         <ListToolbar
           activeFilterCount={Object.values(filters).filter(Boolean).length}

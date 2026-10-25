@@ -44,17 +44,10 @@
 }
 
 .heading {
-  margin-bottom: 28px;
-}
-.heading h1 {
-  margin: 0 0 8px;
+  margin: 0 0 28px;
   font-size: 28px;
   line-height: 1.35;
   letter-spacing: -0.5px;
-}
-.heading p {
-  margin: 0;
-  color: var(--app-muted);
 }
 .error {
   margin-bottom: 20px;

@@ -34,7 +34,7 @@ export default function LoginForm() {
   }
 
   return (
-    <AuthPanel title="登录工作台" description="使用你的账号继续。">
+    <AuthPanel title="登录工作台">
       {router.query.registered === '1' ? (
         <Alert type="success" content="账号已创建，请登录。" className={styles.error} />
       ) : null}

@@ -32,7 +32,7 @@ export default function RegisterForm() {
   }
 
   return (
-    <AuthPanel title="创建账号" description="注册后即可登录个人工作台。">
+    <AuthPanel title="创建账号">
       <RequestError error={loadError} onRetry={() => mutate()} />
       {isLoading ? <Spin tip="正在加载…" /> : null}
       {!loadError && data?.allowRegistration === false ? (

@@ -35,9 +35,6 @@ export default function PasswordForm({ endpoint }) {
   return (
     <section className={styles.panel} aria-label="修改密码">
       <h2>修改密码</h2>
-      <p className={styles.description}>
-        修改成功后，所有设备上的登录会话将失效，请使用新密码重新登录。
-      </p>
       <div className={styles.form}>
         <RequestError error={error} />
         <Form
