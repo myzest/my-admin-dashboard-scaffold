@@ -61,6 +61,7 @@ npm run dev
 | `/admin/operation-logs`           | 查看管理员操作和字段变化，支持按动作、对象类型和对象 ID 筛选           |
 | `/user/balance-logs`              | 只查看本人的余额日志                                                   |
 | `/admin/categories`               | 管理员分类 CRUD 示例                                                   |
+| `/admin/jobs`                     | Bull Board 原生后台任务面板，管理员可观测并完整操作当前队列            |
 
 业务 API 使用 `/api/admin/*` 和 `/api/user/*`，各自校验固定角色；本人资料和改密接口分别为各端的 `/me`、`/password`。公共认证保留 `/api/auth/login`、`logout`、`register`、`registration`。
 
@@ -139,6 +140,8 @@ OpenAPI 首个示例为公开的 `GET /health` 存活检查。管理员可在“
 
 后台任务使用 BullMQ + Redis，由统一启动入口中的独立 Worker 执行；`npm run worker` 保留用于单独排障或有计划的扩容。首个示例为每小时清理过期会话，支持手动投递、结果查询、失败重试和 Worker 重启恢复。统一启动要求 Redis 可用；运行期间 Redis 短暂断线按原规则重连，普通页面和登录不增加 Redis 查询依赖。启动、扩展及验证见 [后台任务与定时调度](docs/background-jobs.md)。
 
+管理员“后台任务”内嵌 Bull Board 原版 UI，开放原生管理权限；专用 `/api/admin/bull-board` 前缀沿用第三方响应格式。接入方式、重试和调度语义见 [后台任务面板](docs/job-board.md)。
+
 ```text
 src/
   pages/admin/           管理员页面
@@ -202,7 +205,7 @@ npx playwright install chromium
 npm run test:system
 ```
 
-入口自动执行测试库迁移和管理员初始化，在 `.local/test-build-<UUID>` 独立构建，生成临时会话密钥，并启动监听本机随机端口的应用。应用与测试使用启动时固定的同一份数据库配置；密码中的 `$` 按字面值保留，不受 Next.js 环境变量展开影响。地址由本次应用进程返回，不使用外部 `TEST_BASE_URL`，也不会连接已经运行的开发服务。无需手动执行 `db:setup`、构建或启动应用。
+入口自动执行测试库迁移和管理员初始化，在 `.local/test-build-<UUID>` 独立构建，生成临时会话密钥，并启动监听本机随机端口的应用。Web 测试要求 `redis-server` 在 `PATH` 中，自动使用随机认证、随机端口和前缀的专用 Redis，完成后清理。应用与测试使用启动时固定的同一份数据库配置；密码中的 `$` 按字面值保留，不受 Next.js 环境变量展开影响。地址由本次应用进程返回，不使用外部 `TEST_BASE_URL`，也不会连接已经运行的开发服务。无需手动执行 `db:setup`、构建或启动应用。
 
 `test:system` 依次运行集成和浏览器测试，中间自动重启应用清空进程内登录额度。只跑其中一套时使用 `npm run test:integration` 或 `npm run test:e2e`，它们也走同一入口。直接运行集成测试文件或 `playwright test` 会拒绝未受管理的目标。
 

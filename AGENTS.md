@@ -19,6 +19,7 @@
 - 成功时 `error` 为空对象，失败时 `data` 为空对象；HTTP 状态码与结果一致。
 - 字段错误可在 `error.fields` 返回 `{ fieldName: '错误信息' }`，保留整体 `code` / `message`；前后端复用浏览器安全的 Zod schema，表单只映射已注册字段。
 - 分页统一放入 `data`：`{"items":[],"pagination":{"page":1,"pageSize":20,"total":0}}`。
+- Bull Board 专用 `/api/admin/bull-board` 前缀使用其原生协议；外层页面的 `_status` 检查仍使用项目封装。面板入口统一验证管理员会话。
 - 普通函数成功返回业务数据，失败抛出明确错误，由 API 层统一转换响应。
 - 单条查询无结果返回 `null`，非分页列表无结果返回 `[]`；分页沿用上述结构，`items` 为空数组。
 - 异步流程统一使用 `async/await`，不吞掉异常，不返回敏感内部信息。
@@ -92,3 +93,14 @@
 - 任务参数使用 Zod 校验，定时定义使用稳定 ID 并显式声明时区。启动、移除调度和扩展方式见 [后台任务](docs/background-jobs.md)。
 - 任务按至少一次执行设计，处理函数必须幂等；队列去重不能代替业务事务与唯一约束。MySQL 提交与 Redis 投递需要可靠联动时使用同事务 Outbox，不把普通提交后回调当成原子保证。
 - 长任务分批并限制单次工作量；参数、结果和失败记录不得保存密码、Cookie、原始 SQL 等敏感内容。各环境使用独立 Redis 或队列前缀。
+- Bull Board 保留管理员原生完整操作权限；队列管理记录为服务端运维事件，任务内部业务变更仍遵循事务审计。面板重试与调度语义见 [后台任务面板](docs/job-board.md)。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

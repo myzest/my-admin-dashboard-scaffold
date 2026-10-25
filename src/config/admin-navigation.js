@@ -2,6 +2,7 @@ import {
   IconApps,
   IconCode,
   IconHistory,
+  IconSchedule,
   IconSettings,
   IconUser,
   IconUserGroup,
@@ -13,6 +14,7 @@ export const adminNavigation = [
   { path: '/admin/operation-logs', label: '操作日志', icon: IconHistory },
   { path: '/admin/categories', label: '分类示例', icon: IconApps },
   { path: '/admin/settings', label: '系统设置', icon: IconSettings },
+  { path: '/admin/jobs', label: '后台任务', icon: IconSchedule },
   { path: '/admin/api-docs', label: '接口文档', icon: IconCode },
   { path: '/admin/profile', label: '个人资料', icon: IconUser },
 ];

@@ -19,7 +19,7 @@ test('an application crash fails the runner and stops its tests before cleaning 
   const root = fileURLToPath(new URL('../', import.meta.url));
   const directory = mkdtempSync(path.join(tmpdir(), 'admin-starter-runner-crash-'));
   try {
-    for (const name of ['scripts', 'tests/integration', 'node_modules/next']) {
+    for (const name of ['scripts', 'tests/helpers', 'tests/integration', 'node_modules/next']) {
       mkdirSync(path.join(directory, name), { recursive: true });
     }
     for (const name of ['test.js', 'test-config.js']) {
@@ -41,6 +41,14 @@ test('an application crash fails the runner and stops its tests before cleaning 
     );
     // Keep the real runner and Node test subprocesses; no database or build is needed.
     write('scripts/database.js', 'process.exit(0);');
+    write(
+      'tests/helpers/redis.js',
+      `import { writeFileSync } from 'node:fs';
+      export async function createTestRedis(context) {
+        context.after(() => writeFileSync('redis-stopped', ''));
+        return { url: 'redis://127.0.0.1:43211/0' };
+      }`,
+    );
     write(
       'node_modules/next/package.json',
       '{"type":"module","exports":{"./dist/bin/next":"./build.js"}}',
@@ -74,6 +82,7 @@ test('an application crash fails the runner and stops its tests before cleaning 
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stderr, /17/);
     assert.equal(existsSync(path.join(directory, 'test-completed')), false);
+    assert.equal(existsSync(path.join(directory, 'redis-stopped')), true);
     assert.deepEqual(readdirSync(path.join(directory, '.local')), []);
   } finally {
     rmSync(directory, { recursive: true, force: true });

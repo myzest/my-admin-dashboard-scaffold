@@ -6,7 +6,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-export async function createTestRedis(context) {
+export async function createTestRedis(context, { handleSignals = true } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'admin-starter-redis-'));
   const portServer = createServer();
   portServer.listen(0, '127.0.0.1');
@@ -87,8 +87,10 @@ export async function createTestRedis(context) {
   function interrupt() {
     void stop().finally(() => process.exit(1));
   }
-  process.on('SIGINT', interrupt);
-  process.on('SIGTERM', interrupt);
+  if (handleSignals) {
+    process.on('SIGINT', interrupt);
+    process.on('SIGTERM', interrupt);
+  }
   await start();
   return {
     connection: { host: '127.0.0.1', port, password },

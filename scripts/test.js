@@ -4,10 +4,12 @@ import { mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createTestEnvironment, getTestBuildDirectory } from './test-config.js';
+import { createTestRedis } from '../tests/helpers/redis.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mode = process.argv[2];
 const children = new Set();
+const cleanups = [];
 let buildDirectory;
 let interrupted = false;
 
@@ -94,6 +96,14 @@ try {
     );
   }
   const env = createTestEnvironment(path.join(root, '.env.test.local'));
+  if (['integration', 'e2e', 'system'].includes(mode)) {
+    const redis = await createTestRedis(
+      { after: (cleanup) => cleanups.push(cleanup) },
+      { handleSignals: false },
+    );
+    env.REDIS_URL = redis.url;
+    env.JOB_QUEUE_PREFIX = `web-test-${env.TEST_RUN_ID}`;
+  }
   await run(['scripts/database.js', 'setup'], env);
   if (mode === 'jobs') {
     await run(['--test', 'tests/jobs/*.test.js'], env);
@@ -128,5 +138,6 @@ try {
   process.exitCode ||= 1;
 } finally {
   await Promise.all([...children].map(stop));
+  for (const cleanup of cleanups.reverse()) await cleanup();
   if (buildDirectory) await rm(buildDirectory, { recursive: true, force: true });
 }

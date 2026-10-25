@@ -4,6 +4,8 @@
 
 首个真实任务是 `cleanup-expired-sessions`：按 `Asia/Shanghai` 时区，每小时整点分批清理数据库中的过期会话。每批最多 500 条，每次最多 20 批；返回 `deletedCount`、`batchCount`、`hasMore`。有剩余时由下一次定时或手动运行继续清理。登录已移除同步清理，鉴权仍立即拒绝过期会话；Worker 停止只会延迟清理，不会使过期会话恢复有效。
 
+管理员可在“后台任务”使用 Bull Board 原生面板观测和操作当前环境队列。面板开放完整原生权限，重试与调度修改的语义、鉴权及运维日志见 [后台任务面板](job-board.md)。
+
 ## 启动
 
 准备 Redis 6.2 或更新版本，本轮使用 Redis 7.2 验证。任务存储应使用持久数据目录，开启 AOF，并设置 `maxmemory-policy noeviction`。开发环境可以在专用目录启动：
