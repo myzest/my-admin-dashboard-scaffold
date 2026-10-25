@@ -51,6 +51,11 @@ async function start() {
   console.log(
     JSON.stringify({ event: 'worker-ready', queue: queue.name, prefix: queue.opts.prefix }),
   );
+  if (process.connected) {
+    process.send({ type: 'ready' }, (error) => {
+      if (error) void stop(1);
+    });
+  }
 }
 
 try {

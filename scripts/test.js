@@ -85,8 +85,13 @@ async function startServer(env) {
 }
 
 try {
-  if (!['integration', 'e2e', 'system', 'jobs'].includes(mode) || process.argv.length !== 3) {
-    throw new Error('用法：npm run test:integration / test:e2e / test:system / test:jobs');
+  if (
+    !['integration', 'e2e', 'system', 'jobs', 'startup'].includes(mode) ||
+    process.argv.length !== 3
+  ) {
+    throw new Error(
+      '用法：npm run test:integration / test:e2e / test:system / test:jobs / test:startup',
+    );
   }
   const env = createTestEnvironment(path.join(root, '.env.test.local'));
   await run(['scripts/database.js', 'setup'], env);
@@ -96,9 +101,10 @@ try {
     buildDirectory = path.join(root, getTestBuildDirectory(env.TEST_RUN_ID));
     await mkdir(buildDirectory, { recursive: true });
     await run([fileURLToPath(import.meta.resolve('next/dist/bin/next')), 'build'], env);
+    if (mode === 'startup') await run(['--test', 'tests/startup/*.test.js'], env);
   }
 
-  const suites = { jobs: [], system: ['integration', 'e2e'] }[mode] ?? [mode];
+  const suites = { jobs: [], startup: [], system: ['integration', 'e2e'] }[mode] ?? [mode];
   for (const suite of suites) {
     const server = await startServer(env);
     try {

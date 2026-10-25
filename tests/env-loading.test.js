@@ -91,7 +91,7 @@ test('CLI and Next agree on literal dollars, interpolation and shell precedence'
   );
 });
 
-test('maintenance defaults to production and npm prehooks match their Next command mode', () => {
+test('maintenance defaults to production and explicit modes match Next environment loading', () => {
   withEnvironmentFiles(
     {
       '.env': 'ENV_MODE=base\n',
@@ -106,20 +106,6 @@ test('maintenance defaults to production and npm prehooks match their Next comma
       for (const [environment, isDevelopment, nodeEnvironment, expectedMode] of [
         [{}, false, 'production', 'production-local'],
         [{ NODE_ENV: 'development' }, true, 'development', 'development-local'],
-        [{ npm_lifecycle_event: 'predev' }, true, 'development', 'development-local'],
-        [{ npm_lifecycle_event: 'prestart' }, false, 'production', 'production-local'],
-        [
-          { npm_lifecycle_event: 'predev', NODE_ENV: 'production' },
-          true,
-          'production',
-          'development-local',
-        ],
-        [
-          { npm_lifecycle_event: 'prestart', NODE_ENV: 'development' },
-          false,
-          'development',
-          'production-local',
-        ],
         [{ NODE_ENV: 'test' }, false, 'test', 'test'],
       ]) {
         const actual = readEnvironment(directory, environment);

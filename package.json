@@ -7,9 +7,9 @@
     "node": "^22.13.0 || >=23.5.0"
   },
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "node scripts/start.js dev",
     "build": "next build",
-    "start": "next start --hostname 127.0.0.1",
+    "start": "node scripts/start.js start",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -25,8 +25,7 @@
     "test:e2e": "node scripts/test.js e2e",
     "test:system": "node scripts/test.js system",
     "test:jobs": "node scripts/test.js jobs",
-    "predev": "node scripts/check-env.js",
-    "prestart": "node scripts/check-env.js"
+    "test:startup": "node scripts/test.js startup"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

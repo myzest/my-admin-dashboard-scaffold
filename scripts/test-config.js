@@ -20,7 +20,7 @@ const testConfigSchema = z
 export function getTestBuildDirectory(runId) {
   if (!z.uuid().safeParse(runId).success) {
     throw new Error(
-      '测试运行标识无效，请使用 npm run test:integration / test:e2e / test:system / test:jobs',
+      '测试运行标识无效，请使用 npm run test:integration / test:e2e / test:system / test:jobs / test:startup',
     );
   }
   return `.local/test-build-${runId}`;

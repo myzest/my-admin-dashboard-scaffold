@@ -6,7 +6,7 @@
 
 ## 本地启动
 
-需要 Node.js 22.x（至少 22.13）或 >= 23.5，以及 MySQL；项目 `.nvmrc` 当前为 26.3.0。
+需要 Node.js 22.x（至少 22.13）或 >= 23.5、MySQL，以及 Redis 6.2 或更新版本；项目 `.nvmrc` 当前为 26.3.0。MySQL 和 Redis 由外部服务启动，Redis 持久化配置见 [后台任务与定时调度](docs/background-jobs.md#启动)。
 
 ```bash
 npm ci
@@ -29,6 +29,8 @@ ON admin_starter.* TO 'admin_starter'@'localhost';
 | `DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD` | 上面创建的数据库连接                                       |
 | `DB_POOL_MAX`                                             | 每个应用进程的连接池上限，默认 10                          |
 | `SESSION_SECRET`                                          | 至少 32 字符的随机密钥                                     |
+| `REDIS_URL`、`JOB_QUEUE_PREFIX`                           | 队列连接地址及环境独立的前缀，Web 和 Worker 使用同一配置   |
+| `JOB_WORKER_CONCURRENCY`                                  | 每个 Worker 的任务并发数，默认 1                           |
 | `ADMIN_USERNAME`、`ADMIN_PASSWORD`                        | 初始管理员；用户名至少 5 位，密码至少 6 位且不超过 72 字节 |
 
 生成会话密钥：
@@ -44,9 +46,9 @@ npm run db:setup
 npm run dev
 ```
 
-打开 `http://127.0.0.1:3000/login`，使用配置的管理员登录。
+`npm run dev` 同时启动 Next.js 和独立 BullMQ Worker；日志出现 `application-ready` 后，打开 `http://127.0.0.1:3000/login`，使用配置的管理员登录。任一服务启动失败会停止另一方并以非零状态退出；`Ctrl+C` 同时停止两者。修改任务处理代码后需重启此命令。启动选项和失败处理见 [统一启动与宝塔部署](docs/application-startup.md)。
 
-应用与维护命令使用 Next.js 的环境文件解析规则，终端中已有的环境变量优先。普通 `.env*` 中的字面 `$` 必须写成 `\$`，例如 `DB_PASSWORD=example\$literal`；未转义的 `$NAME` 会展开为变量值。`db:*` 和 `admin:reset-password` 默认读取 production 模式的环境文件；若使用 `.env.development*`，相应命令也要设置 `NODE_ENV=development`。只使用 `.env.local` 时，无需指定模式。
+应用与维护命令使用 Next.js 的环境文件解析规则，终端中已有的配置变量优先。统一入口根据命令显式设置 `NODE_ENV`：`dev` 使用 development，`start` 使用 production，Web 和 Worker 保持一致。普通 `.env*` 中的字面 `$` 必须写成 `\$`，例如 `DB_PASSWORD=example\$literal`；未转义的 `$NAME` 会展开为变量值。`db:*` 和 `admin:reset-password` 默认读取 production 模式的环境文件；若使用 `.env.development*`，相应命令也要设置 `NODE_ENV=development`。只使用 `.env.local` 时，无需指定模式。
 
 | 入口                              | 功能                                                                   |
 | --------------------------------- | ---------------------------------------------------------------------- |
@@ -90,7 +92,7 @@ npm run admin:reset-password
 
 新建或编辑用户名时要求至少 5 位；既有短用户名仍可登录和恢复密码，不自动改名。注册、创建账号、本人改密和管理员重置使用相同的新密码规则。
 
-数据库与会话配置独立：`db:migrate` 只需要数据库配置，首次 `db:seed` 还需要初始管理员输入；应用启动时同时检查数据库配置和 `SESSION_SECRET`。
+数据库与会话配置独立：`db:migrate` 只需要数据库配置，首次 `db:seed` 还需要初始管理员输入；统一应用入口检查数据库、会话、代理和队列配置，Worker 启动时验证数据库与 Redis 连接。
 
 ## 站点名称与 Logo
 
@@ -98,7 +100,7 @@ npm run admin:reset-password
 
 ## 普通服务器部署
 
-部署使用常驻 Node.js 服务，由服务管理器提供环境变量。初始账号创建后，运行服务不再需要 `ADMIN_PASSWORD`。
+部署使用常驻 Node.js 服务，由服务管理器提供环境变量，MySQL 和持久 Redis 需先就绪。初始账号创建后，运行服务不再需要 `ADMIN_PASSWORD`。
 
 ```bash
 npm ci
@@ -106,6 +108,8 @@ npm run db:setup
 npm run build
 npm run start
 ```
+
+`npm run start` 同时管理生产 Web 与 Worker；迁移和构建仍需单独执行。宝塔使用项目内的 `ecosystem.config.cjs`，或直接运行 `scripts/start.js` 并配置相同的 PM2 参数：单实例 `fork`、`treekill: false`、`wait_ready: true`、`listen_timeout: 65000`、`kill_timeout: 35000`、`restart_delay: 5000`、`watch: false`。详细步骤和部署核验见 [统一启动与宝塔部署](docs/application-startup.md#宝塔与-pm2)。
 
 服务默认监听 `127.0.0.1:3000`，可由 Nginx 等反向代理提供访问入口。应用不校验固定 Origin，也不需要 `APP_ORIGIN`。按已确认选择，会话 Cookie 使用 `secure: false`，保留 `HttpOnly` 和 `SameSite=Lax`。
 
@@ -133,7 +137,7 @@ location / {
 
 OpenAPI 首个示例为公开的 `GET /health` 存活检查。管理员可在“接口文档”查看并下载契约；运行 `npm run openapi:generate` 生成 `docs/openapi.json`。当前只覆盖该示例，使用与扩展方式见 [OpenAPI 契约](docs/openapi.md)。
 
-后台任务使用 BullMQ + Redis，由独立进程 `npm run worker` 执行。首个示例为每小时清理过期会话，支持手动投递、结果查询、失败重试和 Worker 重启恢复。普通页面和登录不需要 Redis；运行 Worker 前需配置 Redis 持久化、`REDIS_URL` 和环境独立的 `JOB_QUEUE_PREFIX`。启动、扩展及验证见 [后台任务与定时调度](docs/background-jobs.md)。
+后台任务使用 BullMQ + Redis，由统一启动入口中的独立 Worker 执行；`npm run worker` 保留用于单独排障或有计划的扩容。首个示例为每小时清理过期会话，支持手动投递、结果查询、失败重试和 Worker 重启恢复。统一启动要求 Redis 可用；运行期间 Redis 短暂断线按原规则重连，普通页面和登录不增加 Redis 查询依赖。启动、扩展及验证见 [后台任务与定时调度](docs/background-jobs.md)。
 
 ```text
 src/
@@ -201,6 +205,13 @@ npm run test:system
 入口自动执行测试库迁移和管理员初始化，在 `.local/test-build-<UUID>` 独立构建，生成临时会话密钥，并启动监听本机随机端口的应用。应用与测试使用启动时固定的同一份数据库配置；密码中的 `$` 按字面值保留，不受 Next.js 环境变量展开影响。地址由本次应用进程返回，不使用外部 `TEST_BASE_URL`，也不会连接已经运行的开发服务。无需手动执行 `db:setup`、构建或启动应用。
 
 `test:system` 依次运行集成和浏览器测试，中间自动重启应用清空进程内登录额度。只跑其中一套时使用 `npm run test:integration` 或 `npm run test:e2e`，它们也走同一入口。直接运行集成测试文件或 `playwright test` 会拒绝未受管理的目标。
+
+统一启动和后台队列另有专项验证，使用同一份独立测试库配置，并要求 `redis-server` 在 `PATH` 中；每次自动启动专用临时 Redis：
+
+```bash
+npm run test:startup # 真实 Next.js / Worker 启停、故障联动和任务消费
+npm run test:jobs    # 任务重试、调度、持久化和会话清理
+```
 
 完成、失败或按 `Ctrl+C` 时，入口停止自己启动的进程并删除本次构建目录，保留截图、失败诊断和测试数据库，不清空数据库或重置已有管理员密码。重复运行时，配置中的管理员凭据应与测试库保持一致；同一测试库一次只运行一个入口。生产 `.next` 和已有应用进程不受影响，生产限流额度不因测试而放宽。迁移测试仍另用空库，执行方式见 [数据库迁移](docs/database-migrations.md)。
 

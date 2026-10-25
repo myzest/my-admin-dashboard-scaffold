@@ -1,6 +1,6 @@
 # 后台任务与定时调度
 
-使用 BullMQ + Redis 保存任务，由独立 Node.js Worker 执行。Next.js 应用、Worker、Redis 分别启动；普通页面和登录不依赖 Redis 是否在线。队列名为 `background`，不同环境通过 `JOB_QUEUE_PREFIX` 隔离。
+使用 BullMQ + Redis 保存任务，由独立 Node.js Worker 执行。`npm run dev` / `npm run start` 统一启动和停止 Next.js 与 Worker；MySQL、Redis 仍作为外部服务运行。启动时 Worker 必须连接数据库与 Redis，失败会使整个应用启动失败。运行期间 Redis 短暂断线沿用重连机制，普通页面和登录不增加 Redis 查询依赖。队列名为 `background`，不同环境通过 `JOB_QUEUE_PREFIX` 隔离。
 
 首个真实任务是 `cleanup-expired-sessions`：按 `Asia/Shanghai` 时区，每小时整点分批清理数据库中的过期会话。每批最多 500 条，每次最多 20 批；返回 `deletedCount`、`batchCount`、`hasMore`。有剩余时由下一次定时或手动运行继续清理。登录已移除同步清理，鉴权仍立即拒绝过期会话；Worker 停止只会延迟清理，不会使过期会话恢复有效。
 
@@ -26,18 +26,22 @@ JOB_WORKER_CONCURRENCY=1
 
 地址必须包含主机名；支持 `rediss://` TLS 连接和 URL 中的认证信息，用户名、密码中的特殊字符需 URL 编码。环境文件中的字面 `$` 遵循项目现有 Next.js 转义规则。开发、测试、生产必须使用不同 Redis 实例或不同前缀，投递方与 Worker 的地址和前缀必须一致。
 
-安装依赖，按数据库文档完成迁移，再在独立终端启动 Worker：
+安装依赖，按数据库文档完成迁移，并确保 Redis 已启动，再运行项目：
 
 ```bash
 npm ci
-npm run worker
+npm run dev
 ```
 
-Worker 只需要数据库及任务配置，不需要管理员初始密码或 `SESSION_SECRET`。启动时验证数据库连接、连接 Redis，并通过稳定的 scheduler ID 注册或更新定时任务；重复启动不会重复增加调度定义。生产由服务管理器常驻运行，应用发布时同时部署对应 Worker 代码。每个 Worker 使用独立数据库连接池，计算连接预算时要计入 `DB_POOL_MAX`。
+生产先执行 `npm run build`，再运行 `npm run start`，或由宝塔管理 `scripts/start.js`。统一入口设置两者相同的环境模式，在 Web 与 Worker 均就绪后输出 `application-ready`。启动超时、联动停止和宝塔参数见 [统一启动与宝塔部署](application-startup.md)。开发期间 Next.js 保留原有热更新；修改任务处理代码或注册表后重启统一入口。
+
+Worker 启动时验证数据库连接、连接 Redis，并通过稳定的 scheduler ID 注册或更新定时任务；重复启动不会重复增加调度定义。每个 Worker 使用独立数据库连接池，计算连接预算时要计入 `DB_POOL_MAX`。
+
+`npm run worker` 保留用于单独排障或有计划的扩容，只需要数据库及任务配置，不需要管理员初始密码或 `SESSION_SECRET`。它默认使用 production 环境；开发排障使用 `NODE_ENV=development npm run worker`。统一入口已包含一个 Worker，正常启动后无需再手动运行此命令，否则会增加消费者与数据库连接。新增消费者前应核算总并发和连接预算。
 
 命令和 Worker 启动时，每次 Redis 连接就绪检查最多等待 10 秒；超时记录 `JOB_QUEUE_UNAVAILABLE`，关闭资源并以非零状态退出。已建立的连接在 Redis 短暂离线后持续重连；投递方禁用离线请求缓冲，断线投递会报错，调用方需要处理失败并按稳定任务 ID 再次确认或重投。
 
-`SIGINT` / `SIGTERM` 会停止领取新任务，等待当前任务完成，再关闭连接；最多等待 30 秒，超过时退出并由 BullMQ 的锁过期与 stalled 检测恢复任务。启动过程中收到退出信号，也会停止继续注册调度或创建 Worker。任务必须能安全重复执行。
+`SIGINT` / `SIGTERM` 会停止领取新任务，等待当前任务完成，再关闭连接；最多等待 30 秒，超过时退出并由 BullMQ 的锁过期与 stalled 检测恢复任务。统一入口收到停止信号后向两者转发退出请求，31 秒后仍存在的子进程组会被强制停止；宝塔／PM2 应留出 35 秒停止窗口。启动过程中收到退出信号，也会停止继续注册调度或创建 Worker。任务必须能安全重复执行。
 
 ## 手动操作
 
@@ -71,11 +75,11 @@ BullMQ 的延迟、等待和限流控制异常保留原有状态流转语义，�
 1. 在所属业务模块实现处理函数，并从该模块的 `server.js` 公开导出；通过 Sequelize 操作数据库。
 2. 在 `src/jobs/registry.js` 注册稳定名称、Zod `schema` 和 `run(data, job)`。需要进度时可在任务适配函数里调用 `job.updateProgress()`，业务服务仍接收普通业务参数。
 3. 需要定时时增加 `schedule: { pattern: '0 2 * * *', tz: 'Asia/Shanghai' }`；上例每天凌晨 2 点执行。定时参数写在定义的 `data` 中并通过相同 schema 校验。没有 `schedule` 的任务仅手动或由业务入口投递。
-4. 重启 Worker 注册新调度；用手动投递验证成功、重试和重复执行，再验证定时触发。
+4. 重启统一应用入口，或重启单独部署的 Worker，注册新调度；用手动投递验证成功、重试和重复执行，再验证定时触发。
 
 公共队列实现位于 `src/server/job-queue.js`，不导入具体业务模块。注册表负责将调度与业务公开入口连接起来。服务端业务入口创建 Queue 后，先用 `await waitForJobReady(queue)` 检查首次连接，再通过 `createJob(queue, jobDefinitions, name, data, jobId)` 投递。长驻进程复用 Queue，退出或初始化失败时调用 `queue.close()`；浏览器不能连接 Redis，也不能提交任意处理函数或代码路径。
 
-移除定时任务时，先停止旧 Worker，修改注册表，然后显式删除 Redis 中的调度定义，再启动新 Worker：
+移除定时任务时，先停止旧 Worker（统一部署时停止整个应用），修改注册表，然后显式删除 Redis 中的调度定义，再启动新版本：
 
 ```bash
 npm run jobs -- remove-schedule cleanup-expired-sessions
