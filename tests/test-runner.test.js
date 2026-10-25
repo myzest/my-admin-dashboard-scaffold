@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { copyFileSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -89,6 +96,47 @@ test('runner owns the database config, session secret, build identity and target
     assert.match(getTestBuildDirectory(environment.TEST_RUN_ID), /^\.local\/test-build-/);
     assert.throws(() => getTestBuildDirectory('../../outside'), /测试运行标识无效/);
   });
+});
+
+test('test configuration preserves quoted spaces, hashes and literal dollars', () => {
+  withConfig(
+    { ...config, DB_PASSWORD: '" space # $DB_USER "', ADMIN_PASSWORD: "'admin # $DB_USER'" },
+    (filename) => {
+      const environment = createTestEnvironment(filename, { DB_USER: 'must-not-expand' });
+      assert.equal(environment.DB_PASSWORD, ' space # $DB_USER ');
+      assert.equal(environment.ADMIN_PASSWORD, 'admin # $DB_USER');
+    },
+  );
+});
+
+test('test configuration accepts UTF-8 BOM and CRLF line endings', () => {
+  withConfig(config, (filename) => {
+    writeFileSync(filename, '\uFEFF' + readFileSync(filename, 'utf8').replaceAll('\n', '\r\n'));
+    const environment = createTestEnvironment(filename, {});
+    assert.equal(environment.DB_HOST, config.DB_HOST);
+    assert.equal(environment.ADMIN_PASSWORD, config.ADMIN_PASSWORD);
+  });
+});
+
+test('test configuration preserves escaped quotes and decodes carriage returns', () => {
+  withConfig(
+    {
+      ...config,
+      DB_PASSWORD: String.raw`"quote\"inside"`,
+      ADMIN_PASSWORD: String.raw`"carriage\rreturn"`,
+    },
+    (filename) => {
+      const environment = createTestEnvironment(filename, {});
+      assert.equal(environment.DB_PASSWORD, String.raw`quote\"inside`);
+      assert.equal(environment.ADMIN_PASSWORD, 'carriage\rreturn');
+    },
+  );
+});
+
+test('the documented test configuration satisfies the runner schema', () => {
+  assert.doesNotThrow(() =>
+    createTestEnvironment(new URL('../.env.test.example', import.meta.url), {}),
+  );
 });
 
 test('test clients reject unmanaged or external targets before sending any requests', () => {

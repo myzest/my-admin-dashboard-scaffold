@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button, Input, Message } from '@arco-design/web-react';
 import { IconPlus, IconRefresh, IconSearch } from '@arco-design/web-react/icon';
-import useSWR, { useSWRConfig } from 'swr';
+import { useSWRConfig } from 'swr';
+import usePaginatedList from '@/lib/usePaginatedList';
 import ResponsiveModal from '@/components/ResponsiveModal';
 import PageHeader from '@/components/PageHeader';
 import ListToolbar from '@/components/ListToolbar';
@@ -18,8 +19,6 @@ export default function UsersPage({ user }) {
   const [message, messageHolder] = Message.useMessage();
   const [keyword, setKeyword] = useState('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [editor, setEditor] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
   const [balanceUser, setBalanceUser] = useState(null);
@@ -29,17 +28,7 @@ export default function UsersPage({ user }) {
   const [mutationError, setMutationError] = useState(null);
   const request = useAuthRequest();
   const { mutate: mutateCache } = useSWRConfig();
-  const query = new URLSearchParams({ page, pageSize, search });
-  const { data, error, isLoading, isValidating, mutate } = useSWR(`/api/admin/users?${query}`, {
-    onSuccess: (result) => {
-      const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
-      if (page > lastPage) setPage(lastPage);
-    },
-  });
-
-  function refreshList() {
-    return mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
-  }
+  const list = usePaginatedList('/api/admin/users', { search });
 
   function openEditor(account = null) {
     setMutationError(null);
@@ -57,7 +46,7 @@ export default function UsersPage({ user }) {
       });
       setEditor(null);
       message.success(account ? '用户已更新' : '用户已创建');
-      await refreshList();
+      await list.refresh();
     } catch (requestError) {
       setMutationError(requestError);
     } finally {
@@ -77,7 +66,7 @@ export default function UsersPage({ user }) {
       );
       setDeletingUser(null);
       message.success('用户及其余额、日志、会话已删除');
-      await refreshList();
+      await list.refresh();
     } catch (requestError) {
       setMutationError(requestError);
     } finally {
@@ -97,7 +86,7 @@ export default function UsersPage({ user }) {
       });
       setStatusUser(null);
       message.success(isEnabled ? '用户已启用' : '用户已停用，登录会话已撤销');
-      await refreshList();
+      await list.refresh();
     } catch (requestError) {
       setMutationError(requestError);
     } finally {
@@ -117,7 +106,7 @@ export default function UsersPage({ user }) {
         <ListToolbar
           activeFilterCount={Number(Boolean(search))}
           actions={
-            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
+            <Button icon={<IconRefresh />} loading={list.isValidating} onClick={list.refresh}>
               刷新
             </Button>
           }
@@ -126,7 +115,7 @@ export default function UsersPage({ user }) {
             className={styles.search}
             onSubmit={(event) => {
               event.preventDefault();
-              setPage(1);
+              list.setPage(1);
               setSearch(keyword.trim());
             }}
           >
@@ -142,18 +131,15 @@ export default function UsersPage({ user }) {
             <Button htmlType="submit">查询</Button>
           </form>
         </ListToolbar>
-        <RequestError error={error} onRetry={refreshList} />
-        {!error || data ? (
+        <RequestError error={list.error} onRetry={list.refresh} />
+        {!list.error || list.data ? (
           <UserTable
-            data={data}
-            isLoading={isLoading || isValidating}
-            page={page}
-            pageSize={pageSize}
+            data={list.data}
+            isLoading={list.isLoading || list.isValidating}
+            page={list.page}
+            pageSize={list.pageSize}
             hasSearch={Boolean(search)}
-            onPageChange={(nextPage, nextPageSize) => {
-              setPage(nextPageSize === pageSize ? nextPage : 1);
-              setPageSize(nextPageSize);
-            }}
+            onPageChange={list.changePage}
             onEdit={openEditor}
             onDelete={(account) => {
               setMutationError(null);
@@ -185,7 +171,7 @@ export default function UsersPage({ user }) {
           onSuccess={async () => {
             setBalanceUser(null);
             message.success('余额已调整');
-            await refreshList();
+            await list.refresh();
           }}
         />
       ) : null}

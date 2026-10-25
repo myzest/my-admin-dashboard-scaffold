@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Input, Message, Space } from '@arco-design/web-react';
 import { IconPlus, IconRefresh, IconSearch } from '@arco-design/web-react/icon';
-import useSWR from 'swr';
+import usePaginatedList from '@/lib/usePaginatedList';
 import { useAuthRequest } from '@/modules/auth/client';
 import { AdminLayout } from '@/modules/auth/admin/client';
 import ResponsiveModal from '@/components/ResponsiveModal';
@@ -16,23 +16,12 @@ export default function CategoriesPage({ user }) {
   const [message, messageHolder] = Message.useMessage();
   const [keyword, setKeyword] = useState('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [editor, setEditor] = useState(null);
   const [deletingCategory, setDeletingCategory] = useState(null);
   const [isMutating, setIsMutating] = useState(false);
   const [mutationError, setMutationError] = useState(null);
   const request = useAuthRequest();
-  const query = new URLSearchParams({ page, pageSize, search });
-  const { data, error, isLoading, isValidating, mutate } = useSWR(
-    `/api/admin/categories?${query}`,
-    {
-      onSuccess: (result) => {
-        const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
-        if (page > lastPage) setPage(lastPage);
-      },
-    },
-  );
+  const list = usePaginatedList('/api/admin/categories', { search });
 
   function openEditor(category = null) {
     setMutationError(null);
@@ -42,10 +31,6 @@ export default function CategoriesPage({ user }) {
   function openDelete(category) {
     setMutationError(null);
     setDeletingCategory(category);
-  }
-
-  async function refreshList() {
-    await mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
   }
 
   async function saveCategory(values) {
@@ -59,7 +44,7 @@ export default function CategoriesPage({ user }) {
       });
       setEditor(null);
       message.success(category ? '分类已更新' : '分类已创建');
-      await refreshList();
+      await list.refresh();
     } catch (requestError) {
       setMutationError(requestError);
     } finally {
@@ -74,7 +59,7 @@ export default function CategoriesPage({ user }) {
       await request(`/api/admin/categories/${deletingCategory.id}`, { method: 'DELETE' });
       setDeletingCategory(null);
       message.success('分类已删除');
-      await refreshList();
+      await list.refresh();
     } catch (requestError) {
       setMutationError(requestError);
     } finally {
@@ -84,7 +69,7 @@ export default function CategoriesPage({ user }) {
 
   function searchCategories(event) {
     event.preventDefault();
-    setPage(1);
+    list.setPage(1);
     setSearch(keyword.trim());
   }
 
@@ -101,7 +86,7 @@ export default function CategoriesPage({ user }) {
         <ListToolbar
           activeFilterCount={Number(Boolean(search))}
           actions={
-            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshList}>
+            <Button icon={<IconRefresh />} loading={list.isValidating} onClick={list.refresh}>
               刷新
             </Button>
           }
@@ -120,18 +105,15 @@ export default function CategoriesPage({ user }) {
           </form>
         </ListToolbar>
 
-        <RequestError error={error} onRetry={refreshList} />
-        {!error || data ? (
+        <RequestError error={list.error} onRetry={list.refresh} />
+        {!list.error || list.data ? (
           <CategoryTable
-            data={data}
-            isLoading={isLoading || isValidating}
-            page={page}
-            pageSize={pageSize}
+            data={list.data}
+            isLoading={list.isLoading || list.isValidating}
+            page={list.page}
+            pageSize={list.pageSize}
             hasSearch={Boolean(search)}
-            onPageChange={(nextPage, nextPageSize) => {
-              setPage(nextPageSize === pageSize ? nextPage : 1);
-              setPageSize(nextPageSize);
-            }}
+            onPageChange={list.changePage}
             onEdit={openEditor}
             onDelete={openDelete}
           />

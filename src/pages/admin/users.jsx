@@ -1,18 +1,6 @@
-import Head from 'next/head';
-import { site } from '@/config/site';
-import { UsersPage } from '@/modules/users/admin/client';
 import { requirePageAuth } from '@/modules/auth/server';
 
-export default function UsersRoute({ user }) {
-  return (
-    <>
-      <Head>
-        <title>{`用户管理 · ${site.name}`}</title>
-      </Head>
-      <UsersPage user={user} />
-    </>
-  );
-}
+export { UsersPage as default } from '@/modules/users/admin/client';
 
 export function getServerSideProps(context) {
   return requirePageAuth(context, { role: 'admin' });

@@ -27,7 +27,7 @@ node scripts/start.js start --port 3100
 
 支持 `-p` / `--port`、`-H` / `--hostname`。入口显式传递端口给 Next.js；端口占用会失败，不会自动换到下一端口。
 
-`dev` 强制使用 `NODE_ENV=development`，`start` 强制使用 `NODE_ENV=production`；两者复用现有 `@next/env` 按 Next.js 的规则加载环境文件，Web 与 Worker 继承一致的启动配置。其他配置仍以已设置的进程环境变量优先，普通 `.env*` 中的字面 `$` 写成 `\$`。维护命令默认 production；使用 `.env.development*` 的数据库时，也应以 `NODE_ENV=development` 执行相应维护命令。独立测试配置继续使用 `dotenv`，项目不自行实现环境文件解析器。
+`dev` 强制使用 `NODE_ENV=development`，`start` 强制使用 `NODE_ENV=production`；两者复用现有 `@next/env` 按 Next.js 的规则加载环境文件，Web 与 Worker 继承一致的启动配置。其他配置仍以已设置的进程环境变量优先，普通 `.env*` 中的字面 `$` 写成 `\$`。维护命令默认 production；使用 `.env.development*` 的数据库时，也应以 `NODE_ENV=development` 执行相应维护命令。独立测试配置使用 `dotenv.parse`，不展开环境变量；项目不自行实现环境文件解析器。
 
 开发和生产使用独立的 Redis 或 `JOB_QUEUE_PREFIX`，投递命令与 Worker 必须使用同一地址和前缀。`DB_POOL_MAX` 是每个进程的上限，连接预算需计入 Web 与 Worker 两份连接池。
 

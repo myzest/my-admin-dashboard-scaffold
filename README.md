@@ -198,7 +198,7 @@ npm test
 cp .env.test.example .env.test.local
 ```
 
-在 `.env.test.local` 中填写测试数据库连接和测试管理员账号密码。`DB_PASSWORD` 必须显式填写，允许留空；`DB_PORT`、`DB_POOL_MAX` 可使用示例默认值。此独立配置使用 dotenv 原样解析，字面 `$` 直接填写，不写 `\$`。测试配置不读取或回退到 `.env.local`，也不接收额外配置字段；不要把业务配置直接复制过来。
+在 `.env.test.local` 中填写测试数据库连接和测试管理员账号密码。`DB_PASSWORD` 必须显式填写，允许留空；`DB_PORT`、`DB_POOL_MAX` 可使用示例默认值。此独立配置使用 `dotenv.parse` 解析，不展开环境变量，字面 `$` 直接填写，不写 `\$`。测试配置不读取或回退到 `.env.local`，也不接收额外配置字段；不要把业务配置直接复制过来。
 
 ```bash
 npx playwright install chromium

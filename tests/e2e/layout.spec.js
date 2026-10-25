@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { test, expect } from '../helpers/admin-session.js';
+import { site } from '../../src/config/site.js';
 
 test.beforeAll(async () => {
   await mkdir('.local/screenshots', { recursive: true });
@@ -59,8 +60,11 @@ test('table fills the viewport and keeps its header, scrollbar and pagination ac
   const body = frame.getByRole('region', { name: '表格内容' });
   const header = frame.locator('[data-table-header]');
   const pagination = page.locator('.arco-pagination');
+  await page.getByLabel('下一页', { exact: true }).click();
+  await expect(page.getByLabel('第 2 页', { exact: true })).toHaveAttribute('aria-current', 'true');
   await pagination.getByRole('combobox').click();
   await page.getByRole('option', { name: '50 条/页', exact: true }).click();
+  await expect(page.getByLabel('第 1 页', { exact: true })).toHaveAttribute('aria-current', 'true');
   await expect(body.getByRole('row')).toHaveCount(50);
   await expect(pagination).toBeInViewport({ ratio: 1 });
   await expectNoPageOverflow(page);
@@ -135,6 +139,7 @@ test('mobile drawer, compact pagination and tablet collapse work without losing 
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/admin/users');
+  await expect(page).toHaveTitle(`用户管理 · ${site.name}`);
   await expect(page.getByRole('complementary', { name: '主导航' })).toBeHidden();
   await expect(page.getByRole('heading', { name: '用户管理', exact: true })).toBeInViewport({
     ratio: 1,
@@ -154,6 +159,7 @@ test('mobile drawer, compact pagination and tablet collapse work without losing 
   await expect(menuButton).toBeFocused();
   await menuButton.click();
   await navigation.getByRole('menuitem', { name: '分类示例', exact: true }).click();
+  await expect(page).toHaveTitle(`分类管理 · ${site.name}`);
   await expect(page.getByRole('heading', { name: '分类管理', exact: true })).toBeInViewport({
     ratio: 1,
   });

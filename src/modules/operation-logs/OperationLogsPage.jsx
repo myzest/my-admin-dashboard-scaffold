@@ -3,7 +3,8 @@ import { Button, Empty, Input, Select } from '@arco-design/web-react';
 import AdaptiveTable from '@/components/AdaptiveTable';
 import ExpandableText from '@/components/ExpandableText';
 import { IconRefresh } from '@arco-design/web-react/icon';
-import useSWR from 'swr';
+import pickBy from 'lodash/pickBy';
+import usePaginatedList from '@/lib/usePaginatedList';
 import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
 import ListToolbar from '@/components/ListToolbar';
@@ -76,21 +77,7 @@ const columns = [
 export default function OperationLogsPage({ user }) {
   const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [filters, setFilters] = useState(initialFilters);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const query = new URLSearchParams({ page, pageSize });
-  for (const [key, value] of Object.entries(filters)) {
-    if (value) query.set(key, value);
-  }
-  const { data, error, isLoading, isValidating, mutate } = useSWR(
-    `/api/admin/operation-logs?${query}`,
-    {
-      onSuccess: (result) => {
-        const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
-        if (page > lastPage) setPage(lastPage);
-      },
-    },
-  );
+  const list = usePaginatedList('/api/admin/operation-logs', pickBy(filters));
 
   function updateFilter(field, value) {
     setDraftFilters((current) => ({ ...current, [field]: value || '' }));
@@ -98,18 +85,14 @@ export default function OperationLogsPage({ user }) {
 
   function filterLogs(event) {
     event.preventDefault();
-    setPage(1);
+    list.setPage(1);
     setFilters({ ...draftFilters, targetId: draftFilters.targetId.trim() });
   }
 
   function resetFilters() {
     setDraftFilters(initialFilters);
     setFilters(initialFilters);
-    setPage(1);
-  }
-
-  function refreshLogs() {
-    return mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
+    list.setPage(1);
   }
 
   return (
@@ -119,7 +102,7 @@ export default function OperationLogsPage({ user }) {
         <ListToolbar
           activeFilterCount={Object.values(filters).filter(Boolean).length}
           actions={
-            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
+            <Button icon={<IconRefresh />} loading={list.isValidating} onClick={list.refresh}>
               刷新
             </Button>
           }
@@ -157,30 +140,27 @@ export default function OperationLogsPage({ user }) {
             <Button onClick={resetFilters}>重置</Button>
           </form>
         </ListToolbar>
-        <RequestError error={error} onRetry={refreshLogs} />
-        {!error || data ? (
+        <RequestError error={list.error} onRetry={list.refresh} />
+        {!list.error || list.data ? (
           <AdaptiveTable
             rowKey="id"
             columns={columns}
-            data={data?.items || []}
-            loading={isLoading || isValidating}
+            data={list.data?.items || []}
+            loading={list.isLoading || list.isValidating}
             border={false}
             tableLayoutFixed
             scroll={{ x: columns.reduce((width, column) => width + column.width, 0) }}
             pagination={{
-              current: page,
-              pageSize,
-              total: data?.pagination.total || 0,
+              current: list.page,
+              pageSize: list.pageSize,
+              total: list.data?.pagination.total || 0,
               showTotal: true,
               sizeCanChange: true,
               sizeOptions: [10, 20, 50],
             }}
-            onChange={({ current, pageSize: nextPageSize }) => {
-              setPage(nextPageSize === pageSize ? current : 1);
-              setPageSize(nextPageSize);
-            }}
+            onChange={({ current, pageSize }) => list.changePage(current, pageSize)}
             noDataElement={
-              isLoading ? '正在加载…' : <Empty description="没有符合条件的操作日志。" />
+              list.isLoading ? '正在加载…' : <Empty description="没有符合条件的操作日志。" />
             }
           />
         ) : null}

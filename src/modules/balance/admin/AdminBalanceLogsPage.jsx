@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Button, Input } from '@arco-design/web-react';
 import { IconRefresh } from '@arco-design/web-react/icon';
-import useSWR from 'swr';
+import usePaginatedList from '@/lib/usePaginatedList';
 import { AdminLayout } from '@/modules/auth/admin/client';
 import PageHeader from '@/components/PageHeader';
 import ExpandableText from '@/components/ExpandableText';
@@ -27,35 +27,21 @@ export default function AdminBalanceLogsPage({ user }) {
   const activeUserId = typeof router.query.userId === 'string' ? router.query.userId : '';
   const [previousUserId, setPreviousUserId] = useState(activeUserId);
   const [userId, setUserId] = useState(activeUserId);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const list = usePaginatedList(
+    '/api/admin/balance-logs',
+    activeUserId ? { userId: activeUserId } : {},
+  );
 
   // Sync URL filters without remounting the toolbar and losing its open state.
   if (previousUserId !== activeUserId) {
     setPreviousUserId(activeUserId);
     setUserId(activeUserId);
-    setPage(1);
-  }
-
-  const query = new URLSearchParams({ page, pageSize });
-  if (activeUserId) query.set('userId', activeUserId);
-  const { data, error, isLoading, isValidating, mutate } = useSWR(
-    `/api/admin/balance-logs?${query}`,
-    {
-      onSuccess: (result) => {
-        const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
-        if (page > lastPage) setPage(lastPage);
-      },
-    },
-  );
-
-  function refreshLogs() {
-    return mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
+    list.setPage(1);
   }
 
   async function filterLogs(event) {
     event.preventDefault();
-    setPage(1);
+    list.setPage(1);
     const value = userId.trim();
     await router.replace({
       pathname: '/admin/balance-logs',
@@ -70,7 +56,7 @@ export default function AdminBalanceLogsPage({ user }) {
         <ListToolbar
           activeFilterCount={Number(Boolean(activeUserId))}
           actions={
-            <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
+            <Button icon={<IconRefresh />} loading={list.isValidating} onClick={list.refresh}>
               刷新
             </Button>
           }
@@ -87,18 +73,15 @@ export default function AdminBalanceLogsPage({ user }) {
             <Button htmlType="submit">查询</Button>
           </form>
         </ListToolbar>
-        <RequestError error={error} onRetry={refreshLogs} />
-        {!error || data ? (
+        <RequestError error={list.error} onRetry={list.refresh} />
+        {!list.error || list.data ? (
           <BalanceLogTable
-            data={data}
-            isLoading={isLoading || isValidating}
-            page={page}
-            pageSize={pageSize}
+            data={list.data}
+            isLoading={list.isLoading || list.isValidating}
+            page={list.page}
+            pageSize={list.pageSize}
             columns={columns}
-            onPageChange={(nextPage, nextPageSize) => {
-              setPage(nextPageSize === pageSize ? nextPage : 1);
-              setPageSize(nextPageSize);
-            }}
+            onPageChange={list.changePage}
           />
         ) : null}
       </section>

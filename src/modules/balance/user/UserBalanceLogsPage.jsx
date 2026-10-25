@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Button } from '@arco-design/web-react';
 import { IconRefresh } from '@arco-design/web-react/icon';
-import useSWR from 'swr';
+import usePaginatedList from '@/lib/usePaginatedList';
 import { UserLayout } from '@/modules/auth/user/client';
 import PageHeader from '@/components/PageHeader';
 import RequestError from '@/components/RequestError';
@@ -9,42 +8,24 @@ import BalanceLogTable from '../BalanceLogTable';
 import styles from '@/styles/workspace.module.css';
 
 export default function UserBalanceLogsPage({ user }) {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const query = new URLSearchParams({ page, pageSize });
-  const { data, error, isLoading, isValidating, mutate } = useSWR(
-    `/api/user/balance-logs?${query}`,
-    {
-      onSuccess: (result) => {
-        const lastPage = Math.max(1, Math.ceil(result.pagination.total / pageSize));
-        if (page > lastPage) setPage(lastPage);
-      },
-    },
-  );
-
-  function refreshLogs() {
-    return mutate(undefined, { revalidate: true, populateCache: false, throwOnError: false });
-  }
+  const list = usePaginatedList('/api/user/balance-logs');
 
   return (
     <UserLayout user={user}>
       <PageHeader title="余额日志">
-        <Button icon={<IconRefresh />} loading={isValidating} onClick={refreshLogs}>
+        <Button icon={<IconRefresh />} loading={list.isValidating} onClick={list.refresh}>
           刷新
         </Button>
       </PageHeader>
       <section className={`${styles.panel} ${styles.listPanel}`} aria-label="余额日志列表">
-        <RequestError error={error} onRetry={refreshLogs} />
-        {!error || data ? (
+        <RequestError error={list.error} onRetry={list.refresh} />
+        {!list.error || list.data ? (
           <BalanceLogTable
-            data={data}
-            isLoading={isLoading || isValidating}
-            page={page}
-            pageSize={pageSize}
-            onPageChange={(nextPage, nextPageSize) => {
-              setPage(nextPageSize === pageSize ? nextPage : 1);
-              setPageSize(nextPageSize);
-            }}
+            data={list.data}
+            isLoading={list.isLoading || list.isValidating}
+            page={list.page}
+            pageSize={list.pageSize}
+            onPageChange={list.changePage}
           />
         ) : null}
       </section>
