@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Button, Form, Space } from '@arco-design/web-react';
+import { Form } from '@arco-design/web-react';
 import ResponsiveModal from '@/components/ResponsiveModal';
 import pick from 'lodash/pick';
 import { AccountFields } from '@/modules/auth/client';
@@ -14,16 +14,10 @@ export default function UserFormModal({ user, isSaving, error, onSubmit, onCance
     <ResponsiveModal
       visible
       title={user ? '编辑用户' : '新增用户'}
-      footer={
-        <Space>
-          <Button onClick={onCancel} disabled={isSaving}>
-            取消
-          </Button>
-          <Button type="primary" htmlType="submit" form={formId} loading={isSaving}>
-            {user ? '保存修改' : '创建用户'}
-          </Button>
-        </Space>
-      }
+      okText={user ? '保存修改' : '创建用户'}
+      confirmLoading={isSaving}
+      okButtonProps={{ htmlType: 'submit', form: formId }}
+      cancelButtonProps={{ disabled: isSaving }}
       onCancel={onCancel}
       maskClosable={false}
       closable={!isSaving}

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import bcrypt from 'bcryptjs';
-import { sealData } from 'iron-session';
 import { getDatabase } from '../../src/server/database.js';
 import { getSessionModel } from '../../src/modules/auth/models.js';
 import { getBalanceLogModel, getUserModel } from '../../src/modules/users/models.js';
@@ -23,6 +22,7 @@ import {
 } from '../../src/modules/categories/server.js';
 import { getOperationLogModel } from '../../src/modules/operation-logs/model.js';
 import { call } from '../helpers/api.js';
+import { createSessionCookie } from '../helpers/session.js';
 
 assert.ok(process.env.DB_NAME?.endsWith('_test'), '操作日志测试必须使用独立测试库');
 
@@ -37,16 +37,6 @@ test('real MySQL: operation logs record session actors and roll back with busine
   const userIds = [];
   const categoryIds = [];
 
-  async function createSession(userId) {
-    const id = randomUUID();
-    await Session.create({ id, userId, expiresAt: new Date(Date.now() + 3600000) });
-    const sealed = await sealData(
-      { sessionId: id },
-      { password: process.env.SESSION_SECRET, ttl: 3600 },
-    );
-    return `starter_session=${sealed}`;
-  }
-
   try {
     const admin = await User.create({
       username: `audit_admin_${suffix}`,
@@ -54,7 +44,7 @@ test('real MySQL: operation logs record session actors and roll back with busine
       role: 'admin',
     });
     userIds.push(admin.id);
-    const cookie = await createSession(admin.id);
+    const cookie = await createSessionCookie(admin.id);
     const created = await call('/api/admin/users?operatorId=1', {
       method: 'POST',
       cookie,
@@ -181,7 +171,7 @@ test('real MySQL: operation logs record session actors and roll back with busine
       }
     });
 
-    const memberCookie = await createSession(member.id);
+    const memberCookie = await createSessionCookie(member.id);
     await changeUserBalance(
       member.id,
       {

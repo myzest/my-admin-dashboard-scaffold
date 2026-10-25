@@ -1,1 +1,1 @@
-export { getMyProfile, changeMyPassword, listMyBalanceLogs } from './service.js';
+export { changeMyPassword, listMyBalanceLogs } from './service.js';

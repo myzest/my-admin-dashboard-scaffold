@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Alert, Button, Form, Input, Space, Switch } from '@arco-design/web-react';
+import { Alert, Form, Input, Switch } from '@arco-design/web-react';
 import ResponsiveModal from '@/components/ResponsiveModal';
 import pick from 'lodash/pick';
 import useFormErrors from '@/components/useFormErrors';
@@ -18,16 +18,10 @@ export default function CategoryFormModal({ category, isSaving, error, onSubmit,
     <ResponsiveModal
       visible
       title={category ? '编辑分类' : '新增分类'}
-      footer={
-        <Space>
-          <Button onClick={onCancel} disabled={isSaving}>
-            取消
-          </Button>
-          <Button type="primary" htmlType="submit" form={formId} loading={isSaving}>
-            {category ? '保存修改' : '创建分类'}
-          </Button>
-        </Space>
-      }
+      okText={category ? '保存修改' : '创建分类'}
+      confirmLoading={isSaving}
+      okButtonProps={{ htmlType: 'submit', form: formId }}
+      cancelButtonProps={{ disabled: isSaving }}
       onCancel={onCancel}
       maskClosable={false}
       closable={!isSaving}

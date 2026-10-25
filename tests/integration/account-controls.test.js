@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import bcrypt from 'bcryptjs';
-import { sealData } from 'iron-session';
 import { getDatabase } from '../../src/server/database.js';
 import { getSessionModel } from '../../src/modules/auth/models.js';
 import { login } from '../../src/modules/auth/server.js';
@@ -17,6 +16,7 @@ import {
 } from '../../src/modules/users/admin/server.js';
 import { authenticateUser, getUserById } from '../../src/modules/users/server.js';
 import { call } from '../helpers/api.js';
+import { createSessionCookie } from '../helpers/session.js';
 
 assert.ok(process.env.DB_NAME?.endsWith('_test'), '集成测试必须使用名称以 _test 结尾的独立数据库');
 
@@ -36,17 +36,6 @@ test('real MySQL: account status, password resets and atomic session revocation'
     return user;
   }
 
-  // Fixture cookies exercise the HTTP authorization path without consuming shared login quotas.
-  async function createSession(userId) {
-    const id = randomUUID();
-    await Session.create({ id, userId, expiresAt: new Date(Date.now() + 3600000) });
-    const sealed = await sealData(
-      { sessionId: id },
-      { password: process.env.SESSION_SECRET, ttl: 3600 },
-    );
-    return `starter_session=${sealed}`;
-  }
-
   try {
     // This disposable four-character administrator verifies recovery of legacy short usernames.
     admin = await User.create({
@@ -55,11 +44,14 @@ test('real MySQL: account status, password resets and atomic session revocation'
       passwordHash: await bcrypt.hash(password, 4),
       role: 'admin',
     });
-    const adminCookie = await createSession(admin.id);
+    const adminCookie = await createSessionCookie(admin.id);
     const member = await createMember('member');
     const other = await createMember('other');
-    let memberCookies = [await createSession(member.id), await createSession(member.id)];
-    const otherCookie = await createSession(other.id);
+    let memberCookies = [
+      await createSessionCookie(member.id),
+      await createSessionCookie(member.id),
+    ];
+    const otherCookie = await createSessionCookie(other.id);
     await changeUserBalance(
       member.id,
       {
@@ -178,7 +170,10 @@ test('real MySQL: account status, password resets and atomic session revocation'
           assert.equal((await call('/api/user/me', { cookie })).response.status, 401);
         }
         assert.equal(await Session.count({ where: { userId: member.id } }), 0);
-        memberCookies = [await createSession(member.id), await createSession(member.id)];
+        memberCookies = [
+          await createSessionCookie(member.id),
+          await createSessionCookie(member.id),
+        ];
       },
     );
 
@@ -233,7 +228,7 @@ test('real MySQL: account status, password resets and atomic session revocation'
     await context.test(
       'session revocation failures roll back status and password changes',
       async (subtest) => {
-        const cookie = await createSession(member.id);
+        const cookie = await createSessionCookie(member.id);
         const before = await User.findByPk(member.id, {
           attributes: ['passwordHash', 'isEnabled', 'balance'],
           raw: true,

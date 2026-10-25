@@ -1,6 +1,5 @@
 export {
   getManagedUserById,
-  getAdminProfile,
   changeAdminPassword,
   listUsers,
   createUser,

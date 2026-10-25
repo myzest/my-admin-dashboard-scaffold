@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import bcrypt from 'bcryptjs';
-import { sealData } from 'iron-session';
 import { getDatabase } from '../../src/server/database.js';
 import { getSessionModel } from '../../src/modules/auth/models.js';
 import { getUserModel } from '../../src/modules/users/models.js';
@@ -11,6 +10,7 @@ import { authenticateUser } from '../../src/modules/users/server.js';
 import { changeUserBalance, createUser } from '../../src/modules/users/admin/server.js';
 import { listMyBalanceLogs } from '../../src/modules/users/user/server.js';
 import { baseUrl, call } from '../helpers/api.js';
+import { createSessionCookie } from '../helpers/session.js';
 
 assert.ok(process.env.DB_NAME?.endsWith('_test'), '集成测试必须使用名称以 _test 结尾的独立数据库');
 
@@ -21,17 +21,6 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
   const createdIds = [];
   const suffix = randomUUID().slice(0, 8);
   const password = `Separation-${randomUUID()}`;
-
-  // Disposable accounts and sealed fixtures never change the real administrator or login quota.
-  async function createSession(userId) {
-    const id = randomUUID();
-    await Session.create({ id, userId, expiresAt: new Date(Date.now() + 3600000) });
-    const sealed = await sealData(
-      { sessionId: id },
-      { password: process.env.SESSION_SECRET, ttl: 3600 },
-    );
-    return `starter_session=${sealed}`;
-  }
 
   async function fetchPage(path, cookie) {
     return fetch(`${baseUrl}${path}`, {
@@ -51,8 +40,8 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
     createdIds.push(member.id);
     const other = await createUser({ username: `split_other_${suffix}`, password }, admin.id);
     createdIds.push(other.id);
-    const adminCookie = await createSession(admin.id);
-    const memberCookie = await createSession(member.id);
+    const adminCookie = await createSessionCookie(admin.id);
+    const memberCookie = await createSessionCookie(member.id);
 
     await context.test(
       'each workspace rejects the other role before executing business logic',
@@ -232,7 +221,7 @@ test('real MySQL: separate workspaces enforce fixed roles and remove legacy entr
           [admin, adminCookie, '/api/admin'],
           [member, memberCookie, '/api/user'],
         ]) {
-          const otherDevice = await createSession(account.id);
+          const otherDevice = await createSessionCookie(account.id);
           const newPassword = `Changed-${randomUUID()}`;
           const changed = await call(`${prefix}/password`, {
             method: 'POST',

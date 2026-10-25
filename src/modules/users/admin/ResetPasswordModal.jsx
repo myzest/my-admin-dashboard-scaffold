@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Button, Form, Space } from '@arco-design/web-react';
+import { Form } from '@arco-design/web-react';
 import ResponsiveModal from '@/components/ResponsiveModal';
 import { NewPasswordField, useAuthRequest } from '@/modules/auth/client';
 import RequestError from '@/components/RequestError';
@@ -31,16 +31,10 @@ export default function ResetPasswordModal({ user, onCancel, onSuccess }) {
     <ResponsiveModal
       visible
       title="重置密码"
-      footer={
-        <Space>
-          <Button onClick={onCancel} disabled={isSubmitting}>
-            取消
-          </Button>
-          <Button type="primary" htmlType="submit" form={formId} loading={isSubmitting}>
-            确认重置
-          </Button>
-        </Space>
-      }
+      okText="确认重置"
+      confirmLoading={isSubmitting}
+      okButtonProps={{ htmlType: 'submit', form: formId }}
+      cancelButtonProps={{ disabled: isSubmitting }}
       onCancel={onCancel}
       maskClosable={false}
       closable={!isSubmitting}
